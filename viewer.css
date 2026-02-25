@@ -3,7 +3,12 @@
 	Copyright Abhinav Singh Chauhan (@xclkvj)
 	Copying the contents of this file by any means is prohibited.
 */
-
+.viewer-wrapper {
+  position: relative;
+  background: #eee;
+  flex: 1;
+  min-height: 400px; 
+}
 #viewerCanvasWrapper, #viewerCanvasWrapper canvas {
 	position: absolute;
 	width: 100%;
