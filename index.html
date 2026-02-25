@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Testche Viewer</title>
+<title>Testche Viewer fuck</title>
 <style>
   body { margin:0; overflow:hidden; background:#f5f5f5; }
+  canvas { display:block; }
 </style>
 </head>
 <body>
@@ -31,16 +32,23 @@ document.body.appendChild(renderer.domElement);
 // Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// Load GLB
+// Load your GLB
 const loader = new GLTFLoader();
-loader.load('Testche.glb', gltf => {
-    scene.add(gltf.scene);
-}, undefined, err => {
-    console.error('Error loading GLB:', err);
-});
+loader.load('Testche.glb',
+    gltf => {
+        // Optional: center the model
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        const center = box.getCenter(new THREE.Vector3());
+        gltf.scene.position.sub(center);
+
+        scene.add(gltf.scene);
+    },
+    undefined,
+    err => console.error('Error loading GLB:', err)
+);
 
 // Animate
-function animate(){
+function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
