@@ -1,106 +1,54 @@
-<!doctype html>
-<html lang="de">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Testche Viewer</title>
-  <meta name="viewport" content="width=device-width, user-scalable=no" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Testche 3D Viewer</title>
 
-  <link rel="stylesheet" href="viewer.css" />
-  <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
-  <script src="https://kit.fontawesome.com/daa834e337.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="./viewer.css" />
 
   <style>
     body {
-      padding: 0;
       margin: 0;
-      font-family: 'Open Sans', Arial, sans-serif;
-      user-select: none;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
       background: #f5f5f5;
+    }
+
+    #viewerCanvasWrapper {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    .loader {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 10;
     }
   </style>
 </head>
 
 <body>
-  <div class="wrapper">
-    <div class="header">
-      <div class="header-left">
-        <div class="header-item" id="toggleModelBrowser" title="Model Browser">
-          <div class="header-icon"><i class="fa fa-sitemap"></i></div>
-          <div class="header-title">Model Browser</div>
-        </div>
 
-        <input type="file" id="fileInput" style="display:none" accept=".glb,.gltf" />
-        <label for="fileInput" class="header-item" id="browseModelBtn" title="GLB auswählen">
-          <div class="header-icon"><i class="fa fa-folder"></i></div>
-          <div class="header-title">Browse .GLB</div>
-        </label>
-      </div>
+  <!-- 3D Canvas -->
+  <div id="viewerCanvasWrapper"></div>
 
-      <div class="header-right">
-        <div class="header-item" id="downloadScreen" title="Screenshot">
-          <div class="header-icon"><i class="fa fa-camera"></i></div>
-          <div class="header-title">Screenshot</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="viewer-wrapper">
-      <div id="viewerCanvasWrapper"></div>
-
-      <!-- (Optional) Sidebar bleibt da, crasht aber nicht, auch wenn noch nichts drin ist -->
-      <div class="left-sidebar" id="modelBrowser" style="display:none;">
-        <div class="sidebar-content" id="modelBrowserContent"></div>
-      </div>
-
-      <div class="right-container">
-        <div id="backToHome" title="Reset"><i class="fa fa-home"></i></div>
-        <!-- orient cube lassen wir fürs erste weg (oder später) -->
-        <div id="orientCubeWrapper" style="display:none;"></div>
-      </div>
-
-      <div class="loader" id="loader">
-        <div class="loader-text" id="loaderInfo">Loading...</div>
-        <div class="loader-spinner"></div>
-      </div>
-    </div>
-
-    <div class="footer">
-      <div class="footer-item" id="resetBtn">
-        <div class="footer-icon"><i class="fa fa-home"></i></div>
-        <div class="footer-title">Home</div>
-      </div>
-
-      <div class="footer-item item-selected" id="toggleOrbit">
-        <div class="footer-icon"><i class="fa fa-street-view"></i></div>
-        <div class="footer-title">Orbit</div>
-      </div>
-
-      <div class="footer-item" id="togglePan">
-        <div class="footer-icon"><i class="fa fa-arrows"></i></div>
-        <div class="footer-title">Pan</div>
-      </div>
-
-      <div class="footer-item" id="toggleZoom">
-        <div class="footer-icon"><i class="fa fa-search-plus"></i></div>
-        <div class="footer-title">Zoom</div>
-      </div>
-    </div>
+  <!-- Loader -->
+  <div class="loader" id="loader">
+    <div id="loaderInfo">Loading...</div>
   </div>
 
-  <!-- lokale vendor libs -->
-<script type="module">
-  import { Viewer } from "./viewer.js";
+  <!-- Module entry point -->
+  <script type="module" src="./main.js"></script>
 
-  const v = Viewer();
-  v.loadModel("./models/Testche.glb");
-</script>
-
-  <script>
-    window.addEventListener("load", () => {
-      const v = Viewer();
-      // DEIN Model:
-      v.loadModel("models/Testche.glb");
-    });
-  </script>
 </body>
 </html>
