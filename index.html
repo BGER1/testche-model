@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Three.js Test</title>
+<title>Three.js Test2</title>
 <style>
   body { margin:0; overflow:hidden; }
   canvas { display:block; }
@@ -10,8 +10,10 @@
 </head>
 <body>
 
-<script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
-
+<script type="module">
+import three from 'https://cdn.jsdelivr.net/npm/three@0.183.1/+esm'
+</script>
+  
 <script>
 // Scene
 const scene = new THREE.Scene();
