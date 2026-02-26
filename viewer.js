@@ -42,7 +42,7 @@ export function Viewer() {
 
     panelNote.textContent = highlightKey
       ? `Ausgewählt: ${highlightKey}`
-      : "Hover über EG / 1.OG / DG";
+      : "Hover über EG / AG / DG";
   }
 
   renderTable();
@@ -141,7 +141,7 @@ export function Viewer() {
     let obj = hits[0].object;
 
     while (obj && obj !== root) {
-      if (obj.name === "EG" || obj.name === "1.OG" || obj.name === "DG") break;
+      if (obj.name === "EG" || obj.name === "AG" || obj.name === "DG") break;
       obj = obj.parent;
     }
 
