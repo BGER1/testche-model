@@ -16,7 +16,7 @@ export function Viewer() {
 
   const floors = [
     { key: "EG", name: "Etage EG", floor: "EG", size: "—", price: "—", status: "free" },
-    { key: "1.OG", name: "Etage 1.OG", floor: "1.OG", size: "—", price: "—", status: "reserved" },
+    { key: "AG", name: "Etage AG", floor: "AG", size: "—", price: "—", status: "reserved" },
     { key: "DG", name: "Etage DG", floor: "DG", size: "—", price: "—", status: "sold" },
   ];
 
