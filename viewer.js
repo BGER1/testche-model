@@ -86,23 +86,24 @@ export function Viewer() {
   let hoveredGroup = null;
 
   function loadModel(url) {
-    gltfLoader.load(url, (gltf) => {
+  gltfLoader.load(url, (gltf) => {
 
-      root = gltf.scene;
-      scene.add(root);
+    root = gltf.scene;
+    window.root = root;   // 👈 ADD THIS LINE
+    scene.add(root);
 
-      // collect meshes
-      pickMeshes = [];
-      root.traverse(obj => {
-        if (obj.isMesh) pickMeshes.push(obj);
-      });
-
-      console.log("Meshes:", pickMeshes.length);
-
-      fitCamera(root);
-
+    // collect meshes
+    pickMeshes = [];
+    root.traverse(obj => {
+      if (obj.isMesh) pickMeshes.push(obj);
     });
-  }
+
+    console.log("Meshes:", pickMeshes.length);
+
+    fitCamera(root);
+
+  });
+}
 
   function fitCamera(object) {
     const box = new THREE.Box3().setFromObject(object);
