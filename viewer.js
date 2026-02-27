@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
 
 export function Viewer() {
 
@@ -77,6 +78,11 @@ export function Viewer() {
   // ---------------- MODEL ----------------
 
   const gltfLoader = new GLTFLoader();
+
+// ✅ Draco support
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/");
+gltfLoader.setDRACOLoader(dracoLoader);
   let root = null;
   let pickMeshes = [];
 
