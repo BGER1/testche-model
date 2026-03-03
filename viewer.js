@@ -13,13 +13,10 @@ export function Viewer() {
   if (!wrapper) throw new Error("Missing #viewerCanvasWrapper");
 
   // ---------------- DATA ----------------
-  // ✅ Keys müssen zu deinen Objekt-Namen im GLB passen (oder Teilstrings davon)
-  const FLOOR_KEYS = ["EG", "1OG", "DG"]; // <- wenn dein Modell "AG" hat: ["EG","AG","DG"]
-
+  // Du hast nur EG + DG:
   const floors = [
-    { key: "EG",  name: "Etage EG",  floor: "EG",  size: "—", price: "—", status: "free" },
-    { key: "1OG", name: "Etage 1.OG", floor: "1.OG", size: "—", price: "—", status: "reserved" },
-    { key: "DG",  name: "Etage DG",  floor: "DG",  size: "—", price: "—", status: "sold" },
+    { key: "EG", name: "Etage EG", floor: "EG", size: "—", price: "—", status: "free" },
+    { key: "DG", name: "Etage DG", floor: "DG", size: "—", price: "—", status: "sold" },
   ];
 
   const STATUS_COLOR = {
@@ -47,11 +44,10 @@ export function Viewer() {
     if (panelNote) {
       panelNote.textContent = highlightKey
         ? `Hover: ${highlightKey}`
-        : `Hover über ${FLOOR_KEYS.join(" / ")}`;
+        : "Hover über EG / DG";
     }
   }
-
-  renderTable();
+  renderTable(null);
 
   // ---------------- THREE SETUP ----------------
   const scene = new THREE.Scene();
@@ -59,14 +55,13 @@ export function Viewer() {
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.01, 10000);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   wrapper.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
 
-  // Licht (emissive sieht man auch ohne, aber so ist’s stabil)
   scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.1));
   const dir = new THREE.DirectionalLight(0xffffff, 0.9);
   dir.position.set(10, 20, 10);
@@ -82,7 +77,7 @@ export function Viewer() {
   window.addEventListener("resize", resize);
   resize();
 
-  // ---------------- MODEL LOADING ----------------
+  // ---------------- MODEL ----------------
   const gltfLoader = new GLTFLoader();
 
   const dracoLoader = new DRACOLoader();
@@ -92,42 +87,66 @@ export function Viewer() {
   let root = null;
   let pickMeshes = [];
 
-  // Floor group lookup: key -> Object3D
-  const floorGroups = new Map(); // "EG" -> obj
+  // Map "EG"/"DG" -> Object3D (Group/Node)
+  const floorGroups = new Map();
+
+  // ✅ WICHTIG: robuste Floor-Erkennung (weil dein EG im GLB offenbar nicht "EG" heißt)
+  function floorKeyFromName(nameRaw) {
+    const n = (nameRaw || "").toUpperCase();
+
+    // DG (du hattest DG schon gefunden)
+    if (n.includes("DG") || n.includes("DACHGESCHOSS")) return "DG";
+
+    // EG Varianten: passt für viele SketchUp/Exporter Benennungen
+    if (
+      n.includes("EG") ||
+      n.includes("ERDGESCHOSS") ||
+      n.includes("GROUND") ||
+      n.includes("FLOOR0") ||
+      n.includes("FLOOR_0") ||
+      n.includes("LEVEL0") ||
+      n.includes("LEVEL_0") ||
+      n.includes("ETAGE0") ||
+      n.includes("ETAGE_0") ||
+      n.includes("STOCK0") ||
+      n.includes("STOCK_0")
+    ) return "EG";
+
+    return null;
+  }
 
   function loadModel(url) {
     if (loaderEl) loaderEl.style.display = "block";
-    if (loaderInfo) loaderInfo.textContent = "Lade 3D-Modell…";
+    if (loaderInfo) loaderInfo.textContent = "Loading…";
 
     gltfLoader.load(
       url,
       (gltf) => {
         root = gltf.scene;
-        window.root = root; // optional fürs Debugging
+        window.root = root; // optional debug
         scene.add(root);
 
-        // Meshes sammeln fürs Raycasting
+        // Meshes fürs Raycasting
         pickMeshes = [];
-        root.traverse(obj => {
-          if (obj.isMesh) pickMeshes.push(obj);
-        });
-
-        // Floors finden (robust: über Namen enthält Key, nicht nur exakt ===)
-        // Du kannst das Console-Log kurz aktiv lassen um echte Namen zu sehen.
-        root.traverse(obj => {
-          const n = (obj.name || "").toUpperCase();
-          if (!n) return;
-
-          for (const key of FLOOR_KEYS) {
-            if (n === key || n.includes(key)) {
-              // wir nehmen das "höchste" Objekt für diesen Key (Group/Empty ideal)
-              if (!floorGroups.has(key)) floorGroups.set(key, obj);
-            }
-          }
-        });
-
+        root.traverse(obj => { if (obj.isMesh) pickMeshes.push(obj); });
         console.log("Meshes:", pickMeshes.length);
+
+        // Floors finden (Nodes/Groups)
+        floorGroups.clear();
+        root.traverse(obj => {
+          const key = floorKeyFromName(obj.name);
+          if (key && !floorGroups.has(key)) floorGroups.set(key, obj);
+        });
         console.log("Floor groups found:", [...floorGroups.keys()]);
+
+        // Optional: wenn du am Anfang nur EG+DG zeigen willst:
+        // (wenn dein Modell noch andere Teile hätte, würden sie versteckt)
+        // -> bei dir egal, aber schadet nicht.
+        root.traverse(obj => {
+          if (!obj.isMesh) return;
+          // sichtbar lassen (du hast eh nur EG+DG), hier könnten wir sonst filtern
+          obj.visible = true;
+        });
 
         fitCamera(root);
 
@@ -137,12 +156,12 @@ export function Viewer() {
       (ev) => {
         if (loaderInfo && ev.total) {
           const p = Math.round((ev.loaded / ev.total) * 100);
-          loaderInfo.textContent = `Laden… ${p}%`;
+          loaderInfo.textContent = `Loading… ${p}%`;
         }
       },
       (err) => {
         console.error(err);
-        if (loaderInfo) loaderInfo.textContent = "Fehler beim Laden des Modells.";
+        if (loaderInfo) loaderInfo.textContent = "Fehler beim Laden.";
         if (loaderEl) loaderEl.style.display = "none";
       }
     );
@@ -167,8 +186,8 @@ export function Viewer() {
   const pointer = new THREE.Vector2();
 
   let hoveredKey = null;
-  let hoveredRoot = null; // das Objekt (Group) das wir highlighten
-  const originalMaterials = new Map(); // Mesh -> originalMaterial
+  let hoveredRoot = null;
+  const originalMaterials = new Map(); // Mesh -> original material
 
   function setPointerFromEvent(e) {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -176,50 +195,14 @@ export function Viewer() {
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   }
 
-  function findFloorKeyForObject(obj) {
-    // wir laufen hoch bis root und schauen, ob irgendein Parent "EG/DG/..." im Namen trägt
+  function findKeyByWalkingParents(obj) {
     let cur = obj;
     while (cur && cur !== root) {
-      const name = (cur.name || "").toUpperCase();
-      for (const key of FLOOR_KEYS) {
-        if (name === key || name.includes(key)) return key;
-      }
+      const key = floorKeyFromName(cur.name);
+      if (key) return key;
       cur = cur.parent;
     }
     return null;
-  }
-
-  function highlightGroup(group, color, intensity) {
-    group.traverse(child => {
-      if (!child.isMesh) return;
-
-      // Originalmaterial einmal speichern
-      if (!originalMaterials.has(child)) {
-        originalMaterials.set(child, child.material);
-      }
-
-      // Clone (bei Arrays auch)
-      const applyToMaterial = (m) => {
-        const mat = m.clone();
-
-        // ✅ Emissive richtig setzen (nicht mat.emissive = Color)
-        if ("emissive" in mat && mat.emissive) {
-          mat.emissive.set(color);
-          mat.emissiveIntensity = intensity;
-        } else if ("color" in mat && mat.color) {
-          mat.color.set(color);
-        }
-
-        mat.needsUpdate = true;
-        return mat;
-      };
-
-      if (Array.isArray(child.material)) {
-        child.material = child.material.map(applyToMaterial);
-      } else {
-        child.material = applyToMaterial(child.material);
-      }
-    });
   }
 
   function resetHighlight() {
@@ -237,18 +220,49 @@ export function Viewer() {
     hoveredKey = null;
   }
 
-  function onPointerMove(e) {
+  function applyHighlight(group, color) {
+    group.traverse(child => {
+      if (!child.isMesh || !child.material) return;
+
+      if (!originalMaterials.has(child)) originalMaterials.set(child, child.material);
+
+      const applyToMaterial = (m) => {
+        const mat = m.clone();
+
+        // ✅ emissive richtig setzen (dein Hauptproblem vorher)
+        if (mat.emissive) {
+          mat.emissive.set(color);
+          mat.emissiveIntensity = 1.5; // absichtlich deutlich sichtbar
+        } else if (mat.color) {
+          mat.color.set(color);
+        }
+
+        mat.needsUpdate = true;
+        return mat;
+      };
+
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map(applyToMaterial);
+      } else {
+        child.material = applyToMaterial(child.material);
+      }
+    });
+  }
+
+  function onPointerMove(event) {
     if (!root) return;
 
-    setPointerFromEvent(e);
+    setPointerFromEvent(event);
     raycaster.setFromCamera(pointer, camera);
 
     const hits = raycaster.intersectObjects(pickMeshes, true);
 
-      console.log("hits:", hits.length);
-  if (hits.length) {
-    console.log("hit name:", hits[0].object.name);
-  }
+    // Debug-Hilfe: zeigt dir live, ob überhaupt was getroffen wird
+    if (panelNote) {
+      panelNote.textContent = hits.length
+        ? `Hit: ${hits[0].object.name || "(no name)"}`
+        : "Hit: (none)";
+    }
 
     if (!hits.length) {
       resetHighlight();
@@ -258,9 +272,10 @@ export function Viewer() {
 
     const hitObj = hits[0].object;
 
-    // Key bestimmen (z.B. EG / 1OG / DG)
-    const key = findFloorKeyForObject(hitObj);
+    // Floor Key herausfinden
+    const key = findKeyByWalkingParents(hitObj);
     if (!key) {
+      // wenn wir keine Floor-Zuordnung finden, highlighten wir nichts
       resetHighlight();
       renderTable(null);
       return;
@@ -269,22 +284,18 @@ export function Viewer() {
     if (hoveredKey === key) return;
 
     resetHighlight();
-
     hoveredKey = key;
 
-    // Was highlighten? Wenn wir eine Group fürs Key gefunden haben → die
-    // sonst: den Parent, der den Key enthält
+    // was highlighten?
     hoveredRoot = floorGroups.get(key) || hitObj;
 
-    // Daten holen
     const data = floors.find(f => f.key === key);
-    const col = data ? STATUS_COLOR[data.status] : new THREE.Color(0x00aaff);
+    const color = data ? STATUS_COLOR[data.status] : new THREE.Color(0x00aaff);
 
-    highlightGroup(hoveredRoot, col, 0.8);
+    applyHighlight(hoveredRoot, color);
     renderTable(key);
   }
 
-  // ✅ pointermove ist besser als mousemove (Touch + Pen)
   renderer.domElement.addEventListener("pointermove", onPointerMove);
   renderer.domElement.addEventListener("pointerleave", () => {
     resetHighlight();
