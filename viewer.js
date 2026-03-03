@@ -13,24 +13,38 @@ export function Viewer() {
   if (!wrapper) throw new Error("Missing #viewerCanvasWrapper");
 
   // ---------------- DATA ----------------
-  // Du hast nur EG + DG:
+  // Floors you have now
   const floors = [
     { key: "EG", name: "Etage EG", floor: "EG", size: "—", price: "—", status: "free" },
-    { key: "DG", name: "Etage DG", floor: "DG", size: "—", price: "—", status: "sold" },
+    { key: "1OG", name: "Etage 1. OG", floor: "1OG", size: "—", price: "—", status: "free" },
+    { key: "2OG", name: "Etage 2. OG", floor: "2OG", size: "—", price: "—", status: "reserved" },
+    { key: "3OG", name: "Etage 3. OG", floor: "3OG", size: "—", price: "—", status: "free" },
+    { key: "4OG", name: "Etage 4. OG", floor: "4OG", size: "—", price: "—", status: "sold" },
   ];
 
+  // Hover highlight colors by status
   const STATUS_COLOR = {
     free: new THREE.Color(0x00ff88),
     reserved: new THREE.Color(0xffcc00),
     sold: new THREE.Color(0xff4444),
   };
 
+  // Static base colors per floor (what you asked for)
+  const FLOOR_BASE_COLORS = {
+    EG: 0xe74c3c,
+    "1OG": 0x3498db,
+    "2OG": 0x2ecc71,
+    "3OG": 0xf1c40f,
+    "4OG": 0x9b59b6,
+  };
+
   function renderTable(highlightKey = null) {
     if (!infoRows) return;
 
-    infoRows.innerHTML = floors.map(f => {
-      const active = highlightKey === f.key;
-      return `
+    infoRows.innerHTML = floors
+      .map((f) => {
+        const active = highlightKey === f.key;
+        return `
         <tr ${active ? `style="background:rgba(0,0,0,0.05)"` : ""}>
           <td>${f.name}</td>
           <td>${f.floor}</td>
@@ -39,12 +53,11 @@ export function Viewer() {
           <td>${f.status}</td>
         </tr>
       `;
-    }).join("");
+      })
+      .join("");
 
     if (panelNote) {
-      panelNote.textContent = highlightKey
-        ? `Hover: ${highlightKey}`
-        : "Hover über EG / DG";
+      panelNote.textContent = highlightKey ? `Hover: ${highlightKey}` : "Hover über Etagen";
     }
   }
   renderTable(null);
@@ -87,32 +100,98 @@ export function Viewer() {
   let root = null;
   let pickMeshes = [];
 
-  // Map "EG"/"DG" -> Object3D (Group/Node)
+  // Map "EG"/"1OG"/... -> Object3D (Group/Node)
   const floorGroups = new Map();
 
-  // ✅ WICHTIG: robuste Floor-Erkennung (weil dein EG im GLB offenbar nicht "EG" heißt)
+  // Store base materials for floors so we can restore after hover highlight
+  // key -> Map(mesh -> originalMaterial)
+  const floorBaseMaterials = new Map();
+
+  // --------- Floor name detection ----------
   function floorKeyFromName(nameRaw) {
-    const n = (nameRaw || "").toUpperCase();
+    const n = (nameRaw || "").toUpperCase().replace(/\s+/g, "");
 
-    // DG (du hattest DG schon gefunden)
-    if (n.includes("DG") || n.includes("DACHGESCHOSS")) return "DG";
+    // Most reliable: exact matches
+    if (n === "EG" || n === "ERDGESCHOSS") return "EG";
+    if (n === "1OG" || n === "1.OG" || n === "OG1") return "1OG";
+    if (n === "2OG" || n === "2.OG" || n === "OG2") return "2OG";
+    if (n === "3OG" || n === "3.OG" || n === "OG3") return "3OG";
+    if (n === "4OG" || n === "4.OG" || n === "OG4") return "4OG";
 
-    // EG Varianten: passt für viele SketchUp/Exporter Benennungen
-    if (
-      n.includes("EG") ||
-      n.includes("ERDGESCHOSS") ||
-      n.includes("GROUND") ||
-      n.includes("FLOOR0") ||
-      n.includes("FLOOR_0") ||
-      n.includes("LEVEL0") ||
-      n.includes("LEVEL_0") ||
-      n.includes("ETAGE0") ||
-      n.includes("ETAGE_0") ||
-      n.includes("STOCK0") ||
-      n.includes("STOCK_0")
-    ) return "EG";
+    // Fallback: contains
+    if (n.includes("ERDGESCHOSS") || n.includes("GROUND") || n.includes("FLOOR0") || n.includes("LEVEL0")) return "EG";
+    if (n.includes("1OG") || n.includes("FLOOR1") || n.includes("LEVEL1") || n.includes("ETAGE1")) return "1OG";
+    if (n.includes("2OG") || n.includes("FLOOR2") || n.includes("LEVEL2") || n.includes("ETAGE2")) return "2OG";
+    if (n.includes("3OG") || n.includes("FLOOR3") || n.includes("LEVEL3") || n.includes("ETAGE3")) return "3OG";
+    if (n.includes("4OG") || n.includes("FLOOR4") || n.includes("LEVEL4") || n.includes("ETAGE4")) return "4OG";
 
     return null;
+  }
+
+  // ---------- Material helpers ----------
+  function cloneAndSetBaseColor(material, hex) {
+    if (!material) return material;
+
+    const m = material.clone();
+    // Use color if present (MeshStandardMaterial etc.)
+    if (m.color) m.color.setHex(hex);
+
+    // Keep textures if they exist; we only tint via base color.
+    // If you want FULL solid color (ignore textures), tell me and I’ll switch it.
+    m.needsUpdate = true;
+    return m;
+  }
+
+  function applyColorToMesh(mesh, hex) {
+    const mat = mesh.material;
+    if (Array.isArray(mat)) {
+      mesh.material = mat.map((m) => cloneAndSetBaseColor(m, hex));
+    } else {
+      mesh.material = cloneAndSetBaseColor(mat, hex);
+    }
+  }
+
+  function cacheMaterialsForGroup(key, group) {
+    const map = new Map();
+    group.traverse((o) => {
+      if (!o.isMesh) return;
+      map.set(o, o.material);
+    });
+    floorBaseMaterials.set(key, map);
+  }
+
+  function restoreBaseForKey(key) {
+    const map = floorBaseMaterials.get(key);
+    if (!map) return;
+    for (const [mesh, mat] of map.entries()) {
+      // mesh might be disposed/removed; guard
+      if (mesh && mesh.isMesh) mesh.material = mat;
+    }
+  }
+
+  function colorizeFloorsOnce() {
+    // Build floor groups
+    floorGroups.clear();
+    root.traverse((obj) => {
+      const key = floorKeyFromName(obj.name);
+      if (key && !floorGroups.has(key)) floorGroups.set(key, obj);
+    });
+
+    console.log("Floor groups found:", [...floorGroups.keys()]);
+
+    // Apply base colors + cache originals
+    for (const [key, group] of floorGroups.entries()) {
+      cacheMaterialsForGroup(key, group);
+
+      const hex = FLOOR_BASE_COLORS[key] ?? 0xcccccc;
+      group.traverse((o) => {
+        if (!o.isMesh) return;
+        applyColorToMesh(o, hex);
+      });
+
+      // After base color is applied, update cache to be "base" state (so hover can restore)
+      cacheMaterialsForGroup(key, group);
+    }
   }
 
   function loadModel(url) {
@@ -123,30 +202,18 @@ export function Viewer() {
       url,
       (gltf) => {
         root = gltf.scene;
-        window.root = root; // optional debug
+        window.root = root; // ✅ debug access like we discussed
         scene.add(root);
 
         // Meshes fürs Raycasting
         pickMeshes = [];
-        root.traverse(obj => { if (obj.isMesh) pickMeshes.push(obj); });
+        root.traverse((obj) => {
+          if (obj.isMesh) pickMeshes.push(obj);
+        });
         console.log("Meshes:", pickMeshes.length);
 
-        // Floors finden (Nodes/Groups)
-        floorGroups.clear();
-        root.traverse(obj => {
-          const key = floorKeyFromName(obj.name);
-          if (key && !floorGroups.has(key)) floorGroups.set(key, obj);
-        });
-        console.log("Floor groups found:", [...floorGroups.keys()]);
-
-        // Optional: wenn du am Anfang nur EG+DG zeigen willst:
-        // (wenn dein Modell noch andere Teile hätte, würden sie versteckt)
-        // -> bei dir egal, aber schadet nicht.
-        root.traverse(obj => {
-          if (!obj.isMesh) return;
-          // sichtbar lassen (du hast eh nur EG+DG), hier könnten wir sonst filtern
-          obj.visible = true;
-        });
+        // ✅ Apply different colors for EG/1OG/2OG/3OG/4OG
+        colorizeFloorsOnce();
 
         fitCamera(root);
 
@@ -187,7 +254,9 @@ export function Viewer() {
 
   let hoveredKey = null;
   let hoveredRoot = null;
-  const originalMaterials = new Map(); // Mesh -> original material
+
+  // Temporary highlight store (only for the currently hovered group)
+  const hoverOriginalMaterials = new Map(); // Mesh -> material (base state)
 
   function setPointerFromEvent(e) {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -208,31 +277,35 @@ export function Viewer() {
   function resetHighlight() {
     if (!hoveredRoot) return;
 
-    hoveredRoot.traverse(child => {
+    // restore the materials we changed during hover
+    hoveredRoot.traverse((child) => {
       if (!child.isMesh) return;
-      if (originalMaterials.has(child)) {
-        child.material = originalMaterials.get(child);
-        originalMaterials.delete(child);
+      if (hoverOriginalMaterials.has(child)) {
+        child.material = hoverOriginalMaterials.get(child);
+        hoverOriginalMaterials.delete(child);
       }
     });
+
+    // also ensure the floor returns to its base palette
+    if (hoveredKey) restoreBaseForKey(hoveredKey);
 
     hoveredRoot = null;
     hoveredKey = null;
   }
 
   function applyHighlight(group, color) {
-    group.traverse(child => {
+    group.traverse((child) => {
       if (!child.isMesh || !child.material) return;
 
-      if (!originalMaterials.has(child)) originalMaterials.set(child, child.material);
+      if (!hoverOriginalMaterials.has(child)) hoverOriginalMaterials.set(child, child.material);
 
       const applyToMaterial = (m) => {
         const mat = m.clone();
 
-        // ✅ emissive richtig setzen (dein Hauptproblem vorher)
+        // Emissive highlight (keeps base floor color visible underneath)
         if (mat.emissive) {
           mat.emissive.set(color);
-          mat.emissiveIntensity = 1.5; // absichtlich deutlich sichtbar
+          mat.emissiveIntensity = 1.5;
         } else if (mat.color) {
           mat.color.set(color);
         }
@@ -257,13 +330,6 @@ export function Viewer() {
 
     const hits = raycaster.intersectObjects(pickMeshes, true);
 
-    // Debug-Hilfe: zeigt dir live, ob überhaupt was getroffen wird
-    if (panelNote) {
-      panelNote.textContent = hits.length
-        ? `Hit: ${hits[0].object.name || "(no name)"}`
-        : "Hit: (none)";
-    }
-
     if (!hits.length) {
       resetHighlight();
       renderTable(null);
@@ -272,10 +338,8 @@ export function Viewer() {
 
     const hitObj = hits[0].object;
 
-    // Floor Key herausfinden
     const key = findKeyByWalkingParents(hitObj);
     if (!key) {
-      // wenn wir keine Floor-Zuordnung finden, highlighten wir nichts
       resetHighlight();
       renderTable(null);
       return;
@@ -285,15 +349,17 @@ export function Viewer() {
 
     resetHighlight();
     hoveredKey = key;
-
-    // was highlighten?
     hoveredRoot = floorGroups.get(key) || hitObj;
 
-    const data = floors.find(f => f.key === key);
+    const data = floors.find((f) => f.key === key);
     const color = data ? STATUS_COLOR[data.status] : new THREE.Color(0x00aaff);
 
     applyHighlight(hoveredRoot, color);
     renderTable(key);
+
+    if (panelNote) {
+      panelNote.textContent = `Hover: ${key}`;
+    }
   }
 
   renderer.domElement.addEventListener("pointermove", onPointerMove);
