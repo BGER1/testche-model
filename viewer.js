@@ -245,6 +245,11 @@ export function Viewer() {
 
     const hits = raycaster.intersectObjects(pickMeshes, true);
 
+      console.log("hits:", hits.length);
+  if (hits.length) {
+    console.log("hit name:", hits[0].object.name);
+  }
+
     if (!hits.length) {
       resetHighlight();
       renderTable(null);
