@@ -12,29 +12,23 @@ export function Viewer() {
   if (!wrapper) throw new Error("Missing #viewerCanvasWrapper");
 
   // ---------------- CONFIG ----------------
-  // IMPORTANT: Set your repo base here (GitHub Pages: https://USER.github.io/REPO/)
   const BASE = "/testche-model";
-
-  // Building model path
   const BUILDING_URL = `${BASE}/models/Testche.glb`;
 
-  // Floors shown on the right table (edit freely)
   const floors = [
-    { key: "EG", name: "Etage EG", floor: "EG", size: "—", price: "—", status: "free" },
-    { key: "1OG", name: "Etage 1. OG", floor: "1OG", size: "—", price: "—", status: "free" },
-    { key: "2OG", name: "Etage 2. OG", floor: "2OG", size: "—", price: "—", status: "reserved" },
-    { key: "3OG", name: "Etage 3. OG", floor: "3OG", size: "—", price: "—", status: "free" },
-    { key: "4OG", name: "Etage 4. OG", floor: "4OG", size: "—", price: "—", status: "sold" },
+    { key: "EG",  name: "Etage EG",     floor: "EG",  size: "—", price: "—", status: "free" },
+    { key: "1OG", name: "Etage 1. OG",  floor: "1OG", size: "—", price: "—", status: "free" },
+    { key: "2OG", name: "Etage 2. OG",  floor: "2OG", size: "—", price: "—", status: "reserved" },
+    { key: "3OG", name: "Etage 3. OG",  floor: "3OG", size: "—", price: "—", status: "free" },
+    { key: "4OG", name: "Etage 4. OG",  floor: "4OG", size: "—", price: "—", status: "sold" },
   ];
 
-  // Hover highlight colors by status
   const STATUS_COLOR = {
     free: new THREE.Color(0x00ff88),
     reserved: new THREE.Color(0xffcc00),
     sold: new THREE.Color(0xff4444),
   };
 
-  // Optional: tint floors differently (keeps textures, just tints)
   const FLOOR_BASE_COLORS = {
     EG: 0xe74c3c,
     "1OG": 0x3498db,
@@ -43,73 +37,52 @@ export function Viewer() {
     "4OG": 0x9b59b6,
   };
 
-  // Camera fly targets per floor (placeholders; tweak later)
   const ENTRY = {
-    EG: { cam: new THREE.Vector3(10, 6, 10), target: new THREE.Vector3(0, 2, 0) },
-    "1OG": { cam: new THREE.Vector3(10, 10, 10), target: new THREE.Vector3(0, 6, 0) },
-    "2OG": { cam: new THREE.Vector3(10, 14, 10), target: new THREE.Vector3(0, 10, 0) },
-    "3OG": { cam: new THREE.Vector3(10, 18, 10), target: new THREE.Vector3(0, 14, 0) },
-    "4OG": { cam: new THREE.Vector3(10, 22, 10), target: new THREE.Vector3(0, 18, 0) },
+    EG:   { cam: new THREE.Vector3(10,  6, 10), target: new THREE.Vector3(0,  2, 0) },
+    "1OG":{ cam: new THREE.Vector3(10, 10, 10), target: new THREE.Vector3(0,  6, 0) },
+    "2OG":{ cam: new THREE.Vector3(10, 14, 10), target: new THREE.Vector3(0, 10, 0) },
+    "3OG":{ cam: new THREE.Vector3(10, 18, 10), target: new THREE.Vector3(0, 14, 0) },
+    "4OG":{ cam: new THREE.Vector3(10, 22, 10), target: new THREE.Vector3(0, 18, 0) },
   };
 
-  // Map floorKey -> tourKey (for now everything goes to W1)
   function tourKeyFromFloorKey(_floorKey) {
     return "W1";
   }
 
-  // ---------------- TOUR DATA (SCALABLE) ----------------
-  // ✅ NO manual yaw/pitch.
-  // You only provide: pano position in the apartment (pos) and camera yaw (yawDeg).
-  // Hotspots are computed automatically from the graph edges (links).
-  //
-  // Folder suggestion:
-  //   /panos/W1/01.png ... 04.png
-  //
-  // For big projects: move this into JSON and load via fetch (function is included below).
+  // Auto-hotspots (pos + yawDeg + links)
   const TOURS = {
     W1: {
       label: "Wohnung W1",
       start: "p1",
-      // World positions are arbitrary units (meters-ish). Only relative layout matters.
-      nodes: {
-        p1: { title: "Spot 1", src: `${BASE}/panos/W1/01.png`, pos: [0, 0, 0], yawDeg: 0, links: ["p2", "p3"] },
-        p2: { title: "Spot 2", src: `${BASE}/panos/W1/02.png`, pos: [3, 0, 1], yawDeg: 90, links: ["p1", "p4"] },
-        p3: { title: "Spot 3", src: `${BASE}/panos/W1/03.png`, pos: [-2, 0, 2], yawDeg: -45, links: ["p1", "p4"] },
-        p4: { title: "Spot 4", src: `${BASE}/panos/W1/04.png`, pos: [5, 0, 2], yawDeg: 130, links: ["p2", "p3"] },
-      },
-      // Visual hotspot pitch: negative means "towards floor"
       hotspotPitchDeg: -35,
+      nodes: {
+        p1: { title: "Spot 1", src: `${BASE}/panos/W1/01.png`, pos: [0, 0, 0],  yawDeg: 0,   links: ["p2", "p3"] },
+        p2: { title: "Spot 2", src: `${BASE}/panos/W1/02.png`, pos: [3, 0, 1],  yawDeg: 90,  links: ["p1", "p4"] },
+        p3: { title: "Spot 3", src: `${BASE}/panos/W1/03.png`, pos: [-2,0, 2],  yawDeg: -45, links: ["p1", "p4"] },
+        p4: { title: "Spot 4", src: `${BASE}/panos/W1/04.png`, pos: [5, 0, 2],  yawDeg: 130, links: ["p2", "p3"] },
+      },
     },
   };
-
-  // Optional: if you want to load a tour from JSON instead of inline:
-  // JSON format expected: same as TOURS.W1 shape (label,start,nodes,hotspotPitchDeg).
-  async function loadTourJson(url) {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Tour JSON fetch failed: ${res.status} ${url}`);
-    return await res.json();
-  }
 
   // ---------------- RIGHT TABLE ----------------
   function renderTable(highlightKey = null) {
     if (!infoRows) return;
-    infoRows.innerHTML = floors
-      .map((f) => {
-        const active = highlightKey === f.key;
-        return `
+    infoRows.innerHTML = floors.map(f => {
+      const active = highlightKey === f.key;
+      return `
         <tr ${active ? `style="background:rgba(0,0,0,0.05)"` : ""}>
           <td>${f.name}</td>
           <td>${f.floor}</td>
           <td>${f.size}</td>
           <td>${f.price}</td>
           <td>${f.status}</td>
-        </tr>
-      `;
-      })
-      .join("");
+        </tr>`;
+    }).join("");
 
     if (panelNote) {
-      panelNote.textContent = highlightKey ? `Hover: ${highlightKey}` : "Hover über Etagen — Click zum Reingehen";
+      panelNote.textContent = highlightKey
+        ? `Hover: ${highlightKey}`
+        : "Hover über Etagen — Click zum Reingehen";
     }
   }
   renderTable(null);
@@ -128,6 +101,10 @@ export function Viewer() {
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  // Building feel
+  controls.rotateSpeed = 0.8;
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.1));
   const dir = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -144,7 +121,7 @@ export function Viewer() {
   window.addEventListener("resize", resize);
   resize();
 
-  // ---------------- UI: Fade + Back Button + Hotspot Layer ----------------
+  // ---------------- UI (Fade / Back / Hotspot Layer) ----------------
   const fade = document.createElement("div");
   fade.style.position = "absolute";
   fade.style.inset = "0";
@@ -184,14 +161,38 @@ export function Viewer() {
   hotspotLayer.style.position = "absolute";
   hotspotLayer.style.inset = "0";
   hotspotLayer.style.pointerEvents = "none";
+  hotspotLayer.style.display = "none";
   wrapper.appendChild(hotspotLayer);
 
   const style = document.createElement("style");
   style.textContent = `
-    @keyframes pulse {
-      0% { transform: scale(0.90); opacity: 0.35; }
-      70% { transform: scale(1.25); opacity: 0.00; }
-      100% { transform: scale(1.25); opacity: 0.00; }
+    @keyframes pulseRing {
+      0% { transform: scale(0.85); opacity: 0.45; }
+      70% { transform: scale(1.35); opacity: 0.00; }
+      100% { transform: scale(1.35); opacity: 0.00; }
+    }
+    .tour-spot {
+      position:absolute;
+      width: 34px; height: 34px;
+      transform: translate(-50%,-50%);
+      pointer-events:auto;
+      cursor:pointer;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.16);
+      border: 3px solid rgba(255,255,255,0.90);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.30);
+      backdrop-filter: blur(2px);
+    }
+    .tour-spot::after {
+      content:"";
+      position:absolute;
+      inset: -12px;
+      border-radius:999px;
+      border: 3px solid rgba(255,255,255,0.40);
+      animation: pulseRing 1.6s infinite;
+    }
+    .tour-spot:hover {
+      transform: translate(-50%,-50%) scale(1.06);
     }
   `;
   document.head.appendChild(style);
@@ -203,17 +204,16 @@ export function Viewer() {
   gltfLoader.setDRACOLoader(dracoLoader);
 
   let mode = "building"; // "building" | "tour"
-
-  let buildingRoot = null;
   let root = null;
+  let buildingRoot = null;
   let pickMeshes = [];
 
-  const floorGroups = new Map(); // key->Object3D
-  const floorBaseMaterials = new Map(); // key -> Map(mesh->mat)
+  const floorGroups = new Map();
+  const floorBaseMaterials = new Map();
 
   function floorKeyFromName(nameRaw) {
     const n = (nameRaw || "").toUpperCase().replace(/\s+/g, "");
-    if (n === "EG" || n.includes("ERDGESCHOSS")) return "EG";
+    if (n === "EG"  || n.includes("ERDGESCHOSS")) return "EG";
     if (n === "1OG" || n.includes("1.OG") || n.includes("LEVEL1") || n.includes("FLOOR1")) return "1OG";
     if (n === "2OG" || n.includes("2.OG") || n.includes("LEVEL2") || n.includes("FLOOR2")) return "2OG";
     if (n === "3OG" || n.includes("3.OG") || n.includes("LEVEL3") || n.includes("FLOOR3")) return "3OG";
@@ -230,15 +230,13 @@ export function Viewer() {
   }
 
   function applyTintToMesh(mesh, hex) {
-    if (Array.isArray(mesh.material)) mesh.material = mesh.material.map((m) => cloneAndTint(m, hex));
+    if (Array.isArray(mesh.material)) mesh.material = mesh.material.map(m => cloneAndTint(m, hex));
     else mesh.material = cloneAndTint(mesh.material, hex);
   }
 
   function cacheMaterialsForGroup(key, group) {
     const map = new Map();
-    group.traverse((o) => {
-      if (o.isMesh) map.set(o, o.material);
-    });
+    group.traverse(o => { if (o.isMesh) map.set(o, o.material); });
     floorBaseMaterials.set(key, map);
   }
 
@@ -252,7 +250,7 @@ export function Viewer() {
 
   function colorizeFloorsOnce() {
     floorGroups.clear();
-    root.traverse((obj) => {
+    root.traverse(obj => {
       const key = floorKeyFromName(obj.name);
       if (key && !floorGroups.has(key)) floorGroups.set(key, obj);
     });
@@ -261,10 +259,8 @@ export function Viewer() {
     for (const [key, group] of floorGroups.entries()) {
       cacheMaterialsForGroup(key, group);
       const hex = FLOOR_BASE_COLORS[key] ?? 0xcccccc;
-      group.traverse((o) => {
-        if (o.isMesh) applyTintToMesh(o, hex);
-      });
-      cacheMaterialsForGroup(key, group); // save "base tinted"
+      group.traverse(o => { if (o.isMesh) applyTintToMesh(o, hex); });
+      cacheMaterialsForGroup(key, group);
     }
   }
 
@@ -291,13 +287,11 @@ export function Viewer() {
       (gltf) => {
         root = gltf.scene;
         buildingRoot = root;
-        window.root = root; // debug access
+        window.root = root; // debug
         scene.add(root);
 
         pickMeshes = [];
-        root.traverse((obj) => {
-          if (obj.isMesh) pickMeshes.push(obj);
-        });
+        root.traverse(o => { if (o.isMesh) pickMeshes.push(o); });
         console.log("Meshes:", pickMeshes.length);
 
         colorizeFloorsOnce();
@@ -326,7 +320,7 @@ export function Viewer() {
 
   let hoveredKey = null;
   let hoveredRoot = null;
-  const hoverOriginalMaterials = new Map(); // mesh->mat
+  const hoverOriginalMaterials = new Map();
 
   function setPointerFromEvent(e) {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -347,7 +341,7 @@ export function Viewer() {
   function resetHighlight() {
     if (!hoveredRoot) return;
 
-    hoveredRoot.traverse((child) => {
+    hoveredRoot.traverse(child => {
       if (!child.isMesh) return;
       if (hoverOriginalMaterials.has(child)) {
         child.material = hoverOriginalMaterials.get(child);
@@ -356,13 +350,12 @@ export function Viewer() {
     });
 
     if (hoveredKey) restoreBaseForKey(hoveredKey);
-
     hoveredRoot = null;
     hoveredKey = null;
   }
 
   function applyHighlight(group, color) {
-    group.traverse((child) => {
+    group.traverse(child => {
       if (!child.isMesh || !child.material) return;
 
       if (!hoverOriginalMaterials.has(child)) hoverOriginalMaterials.set(child, child.material);
@@ -384,22 +377,20 @@ export function Viewer() {
     });
   }
 
-  function onPointerMove(event) {
+  function onPointerMove(e) {
     if (!root || mode !== "building") return;
 
-    setPointerFromEvent(event);
+    setPointerFromEvent(e);
     raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(pickMeshes, true);
 
+    const hits = raycaster.intersectObjects(pickMeshes, true);
     if (!hits.length) {
       resetHighlight();
       renderTable(null);
       return;
     }
 
-    const hitObj = hits[0].object;
-    const key = findKeyByWalkingParents(hitObj);
-
+    const key = findKeyByWalkingParents(hits[0].object);
     if (!key) {
       resetHighlight();
       renderTable(null);
@@ -409,11 +400,10 @@ export function Viewer() {
 
     resetHighlight();
     hoveredKey = key;
-    hoveredRoot = floorGroups.get(key) || hitObj;
+    hoveredRoot = floorGroups.get(key) || hits[0].object;
 
-    const data = floors.find((f) => f.key === key);
+    const data = floors.find(f => f.key === key);
     const color = data ? STATUS_COLOR[data.status] : new THREE.Color(0x00aaff);
-
     applyHighlight(hoveredRoot, color);
     renderTable(key);
   }
@@ -426,7 +416,7 @@ export function Viewer() {
 
   // ---------------- CAMERA FLY ----------------
   function easeInOutCubic(t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
   }
 
   function flyCameraTo(entry, ms = 1100) {
@@ -450,38 +440,43 @@ export function Viewer() {
     });
   }
 
-  // ---------------- PANORAMA TOUR (AUTO HOTSPOTS) ----------------
+  // ---------------- PANORAMA TOUR ----------------
   const pano = {
     root: new THREE.Group(),
     sphere: null,
     texLoader: new THREE.TextureLoader(),
-    cache: new Map(), // src -> texture
+    cache: new Map(),
     currentTour: null,
     currentNode: null,
     hotspotPitchDeg: -35,
   };
-
   pano.root.visible = false;
   scene.add(pano.root);
 
   function setMode(next) {
     mode = next;
-    if (buildingRoot) buildingRoot.visible = mode === "building";
-    pano.root.visible = mode === "tour";
-    hotspotLayer.style.display = mode === "tour" ? "block" : "none";
-    backBtn.style.display = mode === "tour" ? "block" : "none";
+
+    if (buildingRoot) buildingRoot.visible = (mode === "building");
+    pano.root.visible = (mode === "tour");
+
+    hotspotLayer.style.display = (mode === "tour") ? "block" : "none";
+    backBtn.style.display = (mode === "tour") ? "block" : "none";
 
     if (mode === "tour") {
-      // lock zoom/pan so it's a proper panorama look-around
       controls.enablePan = false;
       controls.enableZoom = false;
       controls.minDistance = 0.01;
       controls.maxDistance = 0.01;
+
+      // ✅ Matterport-like “grab image”: invert drag direction
+      controls.rotateSpeed = -0.75;
     } else {
       controls.enablePan = true;
       controls.enableZoom = true;
       controls.minDistance = 0.1;
       controls.maxDistance = Infinity;
+
+      controls.rotateSpeed = 0.8;
     }
   }
 
@@ -489,12 +484,7 @@ export function Viewer() {
     if (pano.cache.has(src)) return pano.cache.get(src);
 
     const tex = await new Promise((resolve, reject) => {
-      pano.texLoader.load(
-        src,
-        (t) => resolve(t),
-        undefined,
-        (e) => reject(e)
-      );
+      pano.texLoader.load(src, (t) => resolve(t), undefined, (e) => reject(e));
     });
 
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -504,72 +494,54 @@ export function Viewer() {
 
   function ensureSphere() {
     if (pano.sphere) return;
+
     const geom = new THREE.SphereGeometry(50, 64, 48);
     geom.scale(-1, 1, 1);
     const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
     pano.sphere = new THREE.Mesh(geom, mat);
     pano.root.add(pano.sphere);
   }
 
-  // ---- Hotspots (DOM) ----
+  // ---- Hotspots ----
   let hotspotEls = []; // { el, yawRad, pitchRad, to }
   function clearHotspots() {
-    hotspotEls.forEach((h) => h.el.remove());
+    hotspotEls.forEach(h => h.el.remove());
     hotspotEls = [];
   }
 
-  function makeSpotElement(label) {
+  function makeSpot(label) {
     const el = document.createElement("div");
+    el.className = "tour-spot";
     el.title = label || "";
-    el.style.position = "absolute";
-    el.style.width = "18px";
-    el.style.height = "18px";
-    el.style.borderRadius = "999px";
-    el.style.background = "rgba(255,255,255,0.95)";
-    el.style.border = "2px solid rgba(0,0,0,0.35)";
-    el.style.boxShadow = "0 6px 18px rgba(0,0,0,0.25)";
-    el.style.transform = "translate(-50%,-50%)";
-    el.style.pointerEvents = "auto";
-    el.style.cursor = "pointer";
-
-    const ring = document.createElement("div");
-    ring.style.position = "absolute";
-    ring.style.inset = "-10px";
-    ring.style.borderRadius = "999px";
-    ring.style.border = "2px solid rgba(255,255,255,0.35)";
-    ring.style.animation = "pulse 1.6s infinite";
-    el.appendChild(ring);
-
     return el;
   }
 
-  // Convert world-direction to yaw relative to node yaw
   function computeYawDegFromPositions(nodeA, nodeB, nodeYawDeg) {
     const a = new THREE.Vector3(...nodeA.pos);
     const b = new THREE.Vector3(...nodeB.pos);
     const v = b.clone().sub(a);
-    // yaw in world: atan2(x, z)
-    const yawWorld = THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z));
-    // hotspot yaw in pano space = worldYaw - cameraYaw
-    let yawLocal = yawWorld - (nodeYawDeg || 0);
-    // normalize to [-180,180]
+
+    const yawWorldDeg = THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z));
+    let yawLocal = yawWorldDeg - (nodeYawDeg || 0);
     yawLocal = ((yawLocal + 180) % 360) - 180;
     return yawLocal;
   }
 
   function buildAutoHotspots(tour, nodeId) {
     clearHotspots();
+
     const node = tour.nodes[nodeId];
     if (!node) return;
 
     const pitchDeg = tour.hotspotPitchDeg ?? pano.hotspotPitchDeg ?? -35;
 
-    (node.links || []).forEach((toId) => {
+    (node.links || []).forEach(toId => {
       const toNode = tour.nodes[toId];
       if (!toNode) return;
 
       const yawDeg = computeYawDegFromPositions(node, toNode, node.yawDeg);
-      const el = makeSpotElement(`${toNode.title || toId}`);
+      const el = makeSpot(toNode.title || toId);
 
       el.addEventListener("click", async (ev) => {
         ev.stopPropagation();
@@ -590,15 +562,13 @@ export function Viewer() {
     if (mode !== "tour" || !pano.currentTour || !pano.currentNode) return;
     const rect = renderer.domElement.getBoundingClientRect();
 
-    hotspotEls.forEach((h) => {
-      // direction from yaw/pitch (local)
+    hotspotEls.forEach(h => {
       const x = Math.cos(h.pitchRad) * Math.sin(h.yawRad);
       const y = Math.sin(h.pitchRad);
       const z = Math.cos(h.pitchRad) * Math.cos(h.yawRad);
 
       const v = new THREE.Vector3(x, y, z).project(camera);
 
-      // if behind camera, hide
       if (v.z > 1) {
         h.el.style.display = "none";
         return;
@@ -611,7 +581,7 @@ export function Viewer() {
       h.el.style.left = `${sx}px`;
       h.el.style.top = `${sy}px`;
 
-      const onScreen = sx >= -50 && sx <= rect.width + 50 && sy >= -50 && sy <= rect.height + 50;
+      const onScreen = sx >= -60 && sx <= rect.width + 60 && sy >= -60 && sy <= rect.height + 60;
       h.el.style.opacity = onScreen ? "1" : "0";
     });
   }
@@ -633,7 +603,6 @@ export function Viewer() {
 
     pano.currentNode = nodeId;
 
-    // Build auto hotspots from positions graph
     buildAutoHotspots(tour, nodeId);
 
     if (loaderEl) loaderEl.style.display = "none";
@@ -643,12 +612,7 @@ export function Viewer() {
   }
 
   async function enterTour(tourKey) {
-    // Option A: inline
-    let tour = TOURS[tourKey];
-
-    // Option B: load JSON (uncomment if you want)
-    // let tour = await loadTourJson(`${BASE}/tour/${tourKey}.json`);
-
+    const tour = TOURS[tourKey];
     if (!tour) throw new Error(`Unknown tour: ${tourKey}`);
 
     pano.currentTour = tour;
@@ -679,9 +643,41 @@ export function Viewer() {
 
   backBtn.addEventListener("click", () => exitTour());
 
-  // ---------------- CLICK: fly-in then tour ----------------
-  renderer.domElement.addEventListener("click", async (e) => {
-    if (!root || mode !== "building") return;
+  // ---------------- "REAL CLICK" DETECTION (Fix: no tour on drag-release) ----------------
+  // We treat click only if pointer moved less than threshold between down/up.
+  const clickState = {
+    downX: 0,
+    downY: 0,
+    downTime: 0,
+    isDown: false,
+  };
+
+  const CLICK_MOVE_PX = 6;
+  const CLICK_MAX_MS = 550;
+
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    if (mode !== "building") return;
+    clickState.isDown = true;
+    clickState.downX = e.clientX;
+    clickState.downY = e.clientY;
+    clickState.downTime = performance.now();
+  });
+
+  renderer.domElement.addEventListener("pointerup", async (e) => {
+    if (mode !== "building") return;
+    if (!clickState.isDown) return;
+    clickState.isDown = false;
+
+    const dx = e.clientX - clickState.downX;
+    const dy = e.clientY - clickState.downY;
+    const dist = Math.hypot(dx, dy);
+    const dt = performance.now() - clickState.downTime;
+
+    // If user was orbiting (drag), ignore.
+    if (dist > CLICK_MOVE_PX || dt > CLICK_MAX_MS) return;
+
+    // ✅ This is a real click → raycast floor
+    if (!root) return;
 
     setPointerFromEvent(e);
     raycaster.setFromCamera(pointer, camera);
@@ -710,6 +706,29 @@ export function Viewer() {
     }
   });
 
+  // ---------------- YAW CALIBRATION (K) ----------------
+  // Use this to fix spot directions quickly: look where "forward" should be, press K.
+  function getCameraYawDeg() {
+    const e = new THREE.Euler().setFromQuaternion(camera.quaternion, "YXZ");
+    return THREE.MathUtils.radToDeg(e.y);
+  }
+
+  function setNodeYawToCurrentLook() {
+    const tour = pano.currentTour;
+    const nodeId = pano.currentNode;
+    if (!tour || !nodeId) return;
+
+    tour.nodes[nodeId].yawDeg = getCameraYawDeg();
+    console.log(`[CALIB] ${nodeId} yawDeg =`, tour.nodes[nodeId].yawDeg.toFixed(1));
+    buildAutoHotspots(tour, nodeId);
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (mode !== "tour") return;
+    if (e.key.toLowerCase() === "k") setNodeYawToCurrentLook();
+    if (e.key === "Escape") exitTour();
+  });
+
   // ---------------- LOOP ----------------
   function animate() {
     requestAnimationFrame(animate);
@@ -719,6 +738,5 @@ export function Viewer() {
   }
   animate();
 
-  // auto-load building when you call viewer.loadModel()
   return { loadModel, exitTour };
 }
