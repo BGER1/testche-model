@@ -9,11 +9,16 @@ export function Viewer() {
   const loaderInfo = document.getElementById("loaderInfo");
   const infoRows = document.getElementById("infoRows");
   const panelNote = document.getElementById("panelNote");
-
   if (!wrapper) throw new Error("Missing #viewerCanvasWrapper");
 
-  // ---------------- DATA ----------------
-  // Floors (keys must match node names in GLB like EG, 1OG, ...)
+  // ---------------- CONFIG ----------------
+  // IMPORTANT: Set your repo base here (GitHub Pages: https://USER.github.io/REPO/)
+  const BASE = "/testche-model";
+
+  // Building model path
+  const BUILDING_URL = `${BASE}/models/Testche.glb`;
+
+  // Floors shown on the right table (edit freely)
   const floors = [
     { key: "EG", name: "Etage EG", floor: "EG", size: "—", price: "—", status: "free" },
     { key: "1OG", name: "Etage 1. OG", floor: "1OG", size: "—", price: "—", status: "free" },
@@ -29,7 +34,7 @@ export function Viewer() {
     sold: new THREE.Color(0xff4444),
   };
 
-  // Static base color per floor (optional; keep if you want)
+  // Optional: tint floors differently (keeps textures, just tints)
   const FLOOR_BASE_COLORS = {
     EG: 0xe74c3c,
     "1OG": 0x3498db,
@@ -38,71 +43,60 @@ export function Viewer() {
     "4OG": 0x9b59b6,
   };
 
-  // ---------------- TOUR CONFIG ----------------
-  // One apartment (W1) with 6 panorama photos.
-  // Replace the file paths with your real ones.
-  // You can later map floor->apartment (EG->W1 etc.). For now: clicking any floor enters W1.
-const BASE = "/testche-model"; // GitHub Pages repo base
-const TOUR = {
-  W1: {
-    start: "p1",
-    nodes: {
-      p1: {
-        title: "Spot 1",
-        src: `${BASE}/panos/W1/01.png`,
-        links: [
-          { to: "p2", label: "→ Spot 2" },
-          { to: "p3", label: "→ Spot 3" },
-        ],
-      },
-      p2: {
-        title: "Spot 2",
-        src: `${BASE}/panos/W1/02.png`,
-        links: [
-          { to: "p1", label: "→ Spot 1" },
-          { to: "p4", label: "→ Spot 4" },
-        ],
-      },
-      p3: {
-        title: "Spot 3",
-        src: `${BASE}/panos/W1/03.png`,
-        links: [
-          { to: "p1", label: "→ Spot 1" },
-          { to: "p4", label: "→ Spot 4" },
-        ],
-      },
-      p4: {
-        title: "Spot 4",
-        src: `${BASE}/panos/W1/04.png`,
-        links: [
-          { to: "p2", label: "→ Spot 2" },
-          { to: "p3", label: "→ Spot 3" },
-        ],
-      },
-    },
-  },
-};
+  // Camera fly targets per floor (placeholders; tweak later)
+  const ENTRY = {
+    EG: { cam: new THREE.Vector3(10, 6, 10), target: new THREE.Vector3(0, 2, 0) },
+    "1OG": { cam: new THREE.Vector3(10, 10, 10), target: new THREE.Vector3(0, 6, 0) },
+    "2OG": { cam: new THREE.Vector3(10, 14, 10), target: new THREE.Vector3(0, 10, 0) },
+    "3OG": { cam: new THREE.Vector3(10, 18, 10), target: new THREE.Vector3(0, 14, 0) },
+    "4OG": { cam: new THREE.Vector3(10, 22, 10), target: new THREE.Vector3(0, 18, 0) },
+  };
 
-  // Map a clicked floor -> which tour to open
-  function tourKeyFromFloorKey(floorKey) {
-    // TODO later: map EG->W01, 1OG->W02 etc.
+  // Map floorKey -> tourKey (for now everything goes to W1)
+  function tourKeyFromFloorKey(_floorKey) {
     return "W1";
   }
 
-  // Camera fly targets per floor (placeholder values; tweak once)
-  const ENTRY = {
-    EG:   { cam: new THREE.Vector3(10, 6, 10), target: new THREE.Vector3(0, 2, 0) },
-    "1OG":{ cam: new THREE.Vector3(10,10, 10), target: new THREE.Vector3(0, 6, 0) },
-    "2OG":{ cam: new THREE.Vector3(10,14, 10), target: new THREE.Vector3(0,10, 0) },
-    "3OG":{ cam: new THREE.Vector3(10,18, 10), target: new THREE.Vector3(0,14, 0) },
-    "4OG":{ cam: new THREE.Vector3(10,22, 10), target: new THREE.Vector3(0,18, 0) },
+  // ---------------- TOUR DATA (SCALABLE) ----------------
+  // ✅ NO manual yaw/pitch.
+  // You only provide: pano position in the apartment (pos) and camera yaw (yawDeg).
+  // Hotspots are computed automatically from the graph edges (links).
+  //
+  // Folder suggestion:
+  //   /panos/W1/01.png ... 04.png
+  //
+  // For big projects: move this into JSON and load via fetch (function is included below).
+  const TOURS = {
+    W1: {
+      label: "Wohnung W1",
+      start: "p1",
+      // World positions are arbitrary units (meters-ish). Only relative layout matters.
+      nodes: {
+        p1: { title: "Spot 1", src: `${BASE}/panos/W1/01.png`, pos: [0, 0, 0], yawDeg: 0, links: ["p2", "p3"] },
+        p2: { title: "Spot 2", src: `${BASE}/panos/W1/02.png`, pos: [3, 0, 1], yawDeg: 90, links: ["p1", "p4"] },
+        p3: { title: "Spot 3", src: `${BASE}/panos/W1/03.png`, pos: [-2, 0, 2], yawDeg: -45, links: ["p1", "p4"] },
+        p4: { title: "Spot 4", src: `${BASE}/panos/W1/04.png`, pos: [5, 0, 2], yawDeg: 130, links: ["p2", "p3"] },
+      },
+      // Visual hotspot pitch: negative means "towards floor"
+      hotspotPitchDeg: -35,
+    },
   };
 
+  // Optional: if you want to load a tour from JSON instead of inline:
+  // JSON format expected: same as TOURS.W1 shape (label,start,nodes,hotspotPitchDeg).
+  async function loadTourJson(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Tour JSON fetch failed: ${res.status} ${url}`);
+    return await res.json();
+  }
+
+  // ---------------- RIGHT TABLE ----------------
   function renderTable(highlightKey = null) {
     if (!infoRows) return;
-    infoRows.innerHTML = floors.map(f => {
-      const active = highlightKey === f.key;
-      return `
+    infoRows.innerHTML = floors
+      .map((f) => {
+        const active = highlightKey === f.key;
+        return `
         <tr ${active ? `style="background:rgba(0,0,0,0.05)"` : ""}>
           <td>${f.name}</td>
           <td>${f.floor}</td>
@@ -111,15 +105,18 @@ const TOUR = {
           <td>${f.status}</td>
         </tr>
       `;
-    }).join("");
+      })
+      .join("");
 
     if (panelNote) {
-      panelNote.textContent = highlightKey ? `Hover: ${highlightKey}` : "Hover über Etagen — click zum Reingehen";
+      panelNote.textContent = highlightKey ? `Hover: ${highlightKey}` : "Hover über Etagen — Click zum Reingehen";
     }
   }
   renderTable(null);
 
   // ---------------- THREE SETUP ----------------
+  wrapper.style.position = "relative";
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#eeeeee");
 
@@ -147,7 +144,7 @@ const TOUR = {
   window.addEventListener("resize", resize);
   resize();
 
-  // ---------------- UI: Fade + Tour Panel ----------------
+  // ---------------- UI: Fade + Back Button + Hotspot Layer ----------------
   const fade = document.createElement("div");
   fade.style.position = "absolute";
   fade.style.inset = "0";
@@ -155,24 +152,7 @@ const TOUR = {
   fade.style.opacity = "0";
   fade.style.pointerEvents = "none";
   fade.style.transition = "opacity 260ms ease";
-  fade.style.borderRadius = "0";
-  wrapper.style.position = "relative";
   wrapper.appendChild(fade);
-
-  const tourPanel = document.createElement("div");
-  tourPanel.style.position = "absolute";
-  tourPanel.style.left = "12px";
-  tourPanel.style.bottom = "12px";
-  tourPanel.style.padding = "10px 12px";
-  tourPanel.style.background = "rgba(255,255,255,0.92)";
-  tourPanel.style.border = "1px solid rgba(0,0,0,0.08)";
-  tourPanel.style.borderRadius = "12px";
-  tourPanel.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  tourPanel.style.fontSize = "13px";
-  tourPanel.style.display = "none";
-  tourPanel.style.maxWidth = "320px";
-  tourPanel.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)";
-  wrapper.appendChild(tourPanel);
 
   function setFade(on) {
     return new Promise((resolve) => {
@@ -185,21 +165,50 @@ const TOUR = {
     });
   }
 
+  const backBtn = document.createElement("button");
+  backBtn.textContent = "Zurück zur Übersicht";
+  backBtn.style.position = "absolute";
+  backBtn.style.right = "12px";
+  backBtn.style.bottom = "12px";
+  backBtn.style.padding = "10px 12px";
+  backBtn.style.borderRadius = "12px";
+  backBtn.style.border = "1px solid rgba(0,0,0,0.12)";
+  backBtn.style.background = "rgba(255,255,255,0.92)";
+  backBtn.style.cursor = "pointer";
+  backBtn.style.fontWeight = "700";
+  backBtn.style.display = "none";
+  backBtn.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)";
+  wrapper.appendChild(backBtn);
+
+  const hotspotLayer = document.createElement("div");
+  hotspotLayer.style.position = "absolute";
+  hotspotLayer.style.inset = "0";
+  hotspotLayer.style.pointerEvents = "none";
+  wrapper.appendChild(hotspotLayer);
+
+  const style = document.createElement("style");
+  style.textContent = `
+    @keyframes pulse {
+      0% { transform: scale(0.90); opacity: 0.35; }
+      70% { transform: scale(1.25); opacity: 0.00; }
+      100% { transform: scale(1.25); opacity: 0.00; }
+    }
+  `;
+  document.head.appendChild(style);
+
   // ---------------- MODEL (BUILDING) ----------------
   const gltfLoader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/");
   gltfLoader.setDRACOLoader(dracoLoader);
 
-  let root = null;
-  let buildingRoot = null;
-  let pickMeshes = [];
   let mode = "building"; // "building" | "tour"
 
-  // Map floorKey -> Object3D
-  const floorGroups = new Map();
+  let buildingRoot = null;
+  let root = null;
+  let pickMeshes = [];
 
-  // Keep base materials (so hover highlight can restore)
+  const floorGroups = new Map(); // key->Object3D
   const floorBaseMaterials = new Map(); // key -> Map(mesh->mat)
 
   function floorKeyFromName(nameRaw) {
@@ -221,13 +230,15 @@ const TOUR = {
   }
 
   function applyTintToMesh(mesh, hex) {
-    if (Array.isArray(mesh.material)) mesh.material = mesh.material.map(m => cloneAndTint(m, hex));
+    if (Array.isArray(mesh.material)) mesh.material = mesh.material.map((m) => cloneAndTint(m, hex));
     else mesh.material = cloneAndTint(mesh.material, hex);
   }
 
   function cacheMaterialsForGroup(key, group) {
     const map = new Map();
-    group.traverse(o => { if (o.isMesh) map.set(o, o.material); });
+    group.traverse((o) => {
+      if (o.isMesh) map.set(o, o.material);
+    });
     floorBaseMaterials.set(key, map);
   }
 
@@ -241,21 +252,19 @@ const TOUR = {
 
   function colorizeFloorsOnce() {
     floorGroups.clear();
-    root.traverse(obj => {
+    root.traverse((obj) => {
       const key = floorKeyFromName(obj.name);
       if (key && !floorGroups.has(key)) floorGroups.set(key, obj);
     });
     console.log("Floor groups found:", [...floorGroups.keys()]);
 
     for (const [key, group] of floorGroups.entries()) {
-      // cache current mats
       cacheMaterialsForGroup(key, group);
-
       const hex = FLOOR_BASE_COLORS[key] ?? 0xcccccc;
-      group.traverse(o => { if (o.isMesh) applyTintToMesh(o, hex); });
-
-      // cache "base tinted" mats
-      cacheMaterialsForGroup(key, group);
+      group.traverse((o) => {
+        if (o.isMesh) applyTintToMesh(o, hex);
+      });
+      cacheMaterialsForGroup(key, group); // save "base tinted"
     }
   }
 
@@ -273,7 +282,7 @@ const TOUR = {
     controls.update();
   }
 
-  function loadModel(url) {
+  function loadModel(url = BUILDING_URL) {
     if (loaderEl) loaderEl.style.display = "block";
     if (loaderInfo) loaderInfo.textContent = "Loading…";
 
@@ -282,11 +291,13 @@ const TOUR = {
       (gltf) => {
         root = gltf.scene;
         buildingRoot = root;
-        window.root = root; // debug
+        window.root = root; // debug access
         scene.add(root);
 
         pickMeshes = [];
-        root.traverse(obj => { if (obj.isMesh) pickMeshes.push(obj); });
+        root.traverse((obj) => {
+          if (obj.isMesh) pickMeshes.push(obj);
+        });
         console.log("Meshes:", pickMeshes.length);
 
         colorizeFloorsOnce();
@@ -315,7 +326,7 @@ const TOUR = {
 
   let hoveredKey = null;
   let hoveredRoot = null;
-  const hoverOriginalMaterials = new Map(); // mesh -> mat (base)
+  const hoverOriginalMaterials = new Map(); // mesh->mat
 
   function setPointerFromEvent(e) {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -336,7 +347,7 @@ const TOUR = {
   function resetHighlight() {
     if (!hoveredRoot) return;
 
-    hoveredRoot.traverse(child => {
+    hoveredRoot.traverse((child) => {
       if (!child.isMesh) return;
       if (hoverOriginalMaterials.has(child)) {
         child.material = hoverOriginalMaterials.get(child);
@@ -351,7 +362,7 @@ const TOUR = {
   }
 
   function applyHighlight(group, color) {
-    group.traverse(child => {
+    group.traverse((child) => {
       if (!child.isMesh || !child.material) return;
 
       if (!hoverOriginalMaterials.has(child)) hoverOriginalMaterials.set(child, child.material);
@@ -378,7 +389,6 @@ const TOUR = {
 
     setPointerFromEvent(event);
     raycaster.setFromCamera(pointer, camera);
-
     const hits = raycaster.intersectObjects(pickMeshes, true);
 
     if (!hits.length) {
@@ -401,7 +411,7 @@ const TOUR = {
     hoveredKey = key;
     hoveredRoot = floorGroups.get(key) || hitObj;
 
-    const data = floors.find(f => f.key === key);
+    const data = floors.find((f) => f.key === key);
     const color = data ? STATUS_COLOR[data.status] : new THREE.Color(0x00aaff);
 
     applyHighlight(hoveredRoot, color);
@@ -416,10 +426,10 @@ const TOUR = {
 
   // ---------------- CAMERA FLY ----------------
   function easeInOutCubic(t) {
-    return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  function flyCameraTo(entry, ms = 1200) {
+  function flyCameraTo(entry, ms = 1100) {
     return new Promise((resolve) => {
       const startPos = camera.position.clone();
       const startTarget = controls.target.clone();
@@ -440,14 +450,15 @@ const TOUR = {
     });
   }
 
-  // ---------------- PANORAMA TOUR (D5) ----------------
+  // ---------------- PANORAMA TOUR (AUTO HOTSPOTS) ----------------
   const pano = {
     root: new THREE.Group(),
     sphere: null,
     texLoader: new THREE.TextureLoader(),
+    cache: new Map(), // src -> texture
     currentTour: null,
     currentNode: null,
-    cache: new Map(), // src -> texture
+    hotspotPitchDeg: -35,
   };
 
   pano.root.visible = false;
@@ -455,11 +466,13 @@ const TOUR = {
 
   function setMode(next) {
     mode = next;
-    if (buildingRoot) buildingRoot.visible = (mode === "building");
-    pano.root.visible = (mode === "tour");
+    if (buildingRoot) buildingRoot.visible = mode === "building";
+    pano.root.visible = mode === "tour";
+    hotspotLayer.style.display = mode === "tour" ? "block" : "none";
+    backBtn.style.display = mode === "tour" ? "block" : "none";
 
-    // controls behavior
     if (mode === "tour") {
+      // lock zoom/pan so it's a proper panorama look-around
       controls.enablePan = false;
       controls.enableZoom = false;
       controls.minDistance = 0.01;
@@ -472,55 +485,156 @@ const TOUR = {
     }
   }
 
-  function getTexture(src) {
-    if (pano.cache.has(src)) return Promise.resolve(pano.cache.get(src));
+  async function getTexture(src) {
+    if (pano.cache.has(src)) return pano.cache.get(src);
 
-    return new Promise((resolve, reject) => {
+    const tex = await new Promise((resolve, reject) => {
       pano.texLoader.load(
         src,
-        (tex) => {
-          tex.colorSpace = THREE.SRGBColorSpace;
-          pano.cache.set(src, tex);
-          resolve(tex);
-        },
+        (t) => resolve(t),
         undefined,
-        reject
+        (e) => reject(e)
       );
     });
+
+    tex.colorSpace = THREE.SRGBColorSpace;
+    pano.cache.set(src, tex);
+    return tex;
   }
 
   function ensureSphere() {
     if (pano.sphere) return;
-
     const geom = new THREE.SphereGeometry(50, 64, 48);
-    geom.scale(-1, 1, 1); // view from inside
-
+    geom.scale(-1, 1, 1);
     const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     pano.sphere = new THREE.Mesh(geom, mat);
     pano.root.add(pano.sphere);
   }
 
+  // ---- Hotspots (DOM) ----
+  let hotspotEls = []; // { el, yawRad, pitchRad, to }
+  function clearHotspots() {
+    hotspotEls.forEach((h) => h.el.remove());
+    hotspotEls = [];
+  }
+
+  function makeSpotElement(label) {
+    const el = document.createElement("div");
+    el.title = label || "";
+    el.style.position = "absolute";
+    el.style.width = "18px";
+    el.style.height = "18px";
+    el.style.borderRadius = "999px";
+    el.style.background = "rgba(255,255,255,0.95)";
+    el.style.border = "2px solid rgba(0,0,0,0.35)";
+    el.style.boxShadow = "0 6px 18px rgba(0,0,0,0.25)";
+    el.style.transform = "translate(-50%,-50%)";
+    el.style.pointerEvents = "auto";
+    el.style.cursor = "pointer";
+
+    const ring = document.createElement("div");
+    ring.style.position = "absolute";
+    ring.style.inset = "-10px";
+    ring.style.borderRadius = "999px";
+    ring.style.border = "2px solid rgba(255,255,255,0.35)";
+    ring.style.animation = "pulse 1.6s infinite";
+    el.appendChild(ring);
+
+    return el;
+  }
+
+  // Convert world-direction to yaw relative to node yaw
+  function computeYawDegFromPositions(nodeA, nodeB, nodeYawDeg) {
+    const a = new THREE.Vector3(...nodeA.pos);
+    const b = new THREE.Vector3(...nodeB.pos);
+    const v = b.clone().sub(a);
+    // yaw in world: atan2(x, z)
+    const yawWorld = THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z));
+    // hotspot yaw in pano space = worldYaw - cameraYaw
+    let yawLocal = yawWorld - (nodeYawDeg || 0);
+    // normalize to [-180,180]
+    yawLocal = ((yawLocal + 180) % 360) - 180;
+    return yawLocal;
+  }
+
+  function buildAutoHotspots(tour, nodeId) {
+    clearHotspots();
+    const node = tour.nodes[nodeId];
+    if (!node) return;
+
+    const pitchDeg = tour.hotspotPitchDeg ?? pano.hotspotPitchDeg ?? -35;
+
+    (node.links || []).forEach((toId) => {
+      const toNode = tour.nodes[toId];
+      if (!toNode) return;
+
+      const yawDeg = computeYawDegFromPositions(node, toNode, node.yawDeg);
+      const el = makeSpotElement(`${toNode.title || toId}`);
+
+      el.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        await showTourNode(toId);
+      });
+
+      hotspotLayer.appendChild(el);
+      hotspotEls.push({
+        el,
+        to: toId,
+        yawRad: THREE.MathUtils.degToRad(yawDeg),
+        pitchRad: THREE.MathUtils.degToRad(pitchDeg),
+      });
+    });
+  }
+
+  function updateHotspotPositions() {
+    if (mode !== "tour" || !pano.currentTour || !pano.currentNode) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+
+    hotspotEls.forEach((h) => {
+      // direction from yaw/pitch (local)
+      const x = Math.cos(h.pitchRad) * Math.sin(h.yawRad);
+      const y = Math.sin(h.pitchRad);
+      const z = Math.cos(h.pitchRad) * Math.cos(h.yawRad);
+
+      const v = new THREE.Vector3(x, y, z).project(camera);
+
+      // if behind camera, hide
+      if (v.z > 1) {
+        h.el.style.display = "none";
+        return;
+      }
+
+      const sx = (v.x * 0.5 + 0.5) * rect.width;
+      const sy = (-v.y * 0.5 + 0.5) * rect.height;
+
+      h.el.style.display = "block";
+      h.el.style.left = `${sx}px`;
+      h.el.style.top = `${sy}px`;
+
+      const onScreen = sx >= -50 && sx <= rect.width + 50 && sy >= -50 && sy <= rect.height + 50;
+      h.el.style.opacity = onScreen ? "1" : "0";
+    });
+  }
+
   async function showTourNode(nodeId) {
     const tour = pano.currentTour;
-    const node = tour.nodes[nodeId];
-    if (!node) throw new Error(`Missing node: ${nodeId}`);
+    const node = tour?.nodes?.[nodeId];
+    if (!tour || !node) throw new Error(`Missing node: ${nodeId}`);
 
-    // small fade between panos
     await setFade(true);
 
     if (loaderEl) loaderEl.style.display = "block";
-    if (loaderInfo) loaderInfo.textContent = `Loading: ${node.title}…`;
-
-    const tex = await getTexture(node.src);
+    if (loaderInfo) loaderInfo.textContent = `Loading: ${node.title || nodeId}…`;
 
     ensureSphere();
+    const tex = await getTexture(node.src);
     pano.sphere.material.map = tex;
     pano.sphere.material.needsUpdate = true;
 
     pano.currentNode = nodeId;
 
-    // update UI
-    renderTourUI(tour, nodeId);
+    // Build auto hotspots from positions graph
+    buildAutoHotspots(tour, nodeId);
 
     if (loaderEl) loaderEl.style.display = "none";
     if (loaderInfo) loaderInfo.textContent = "";
@@ -528,58 +642,20 @@ const TOUR = {
     await setFade(false);
   }
 
-  function renderTourUI(tour, nodeId) {
-    const node = tour.nodes[nodeId];
-
-    // build buttons for links
-    const linksHtml = (node.links || [])
-      .map((l, idx) => `<button data-to="${l.to}" style="
-          display:block;width:100%;text-align:left;
-          padding:8px 10px;margin-top:6px;
-          border-radius:10px;border:1px solid rgba(0,0,0,0.10);
-          background:white;cursor:pointer;
-        ">${l.label ?? `Go ${idx+1}`}</button>`)
-      .join("");
-
-    tourPanel.innerHTML = `
-      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;">
-        <div>
-          <div style="font-weight:700">${tour === TOUR.W1 ? "Wohnung W1" : "Tour"}</div>
-          <div style="opacity:0.75">${node.title}</div>
-        </div>
-        <button id="exitTourBtn" style="
-          padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.12);
-          background:#fff;cursor:pointer;font-weight:600;
-        ">Exit</button>
-      </div>
-      <div style="margin-top:8px;opacity:0.85">Navigation</div>
-      ${linksHtml}
-      <div style="margin-top:10px;opacity:0.6;font-size:12px">Drag to look around</div>
-    `;
-
-    tourPanel.style.display = "block";
-
-    const exitBtn = tourPanel.querySelector("#exitTourBtn");
-    if (exitBtn) exitBtn.onclick = () => exitTour();
-
-    tourPanel.querySelectorAll("button[data-to]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const to = btn.getAttribute("data-to");
-        if (!to) return;
-        await showTourNode(to);
-      });
-    });
-  }
-
   async function enterTour(tourKey) {
-    const tour = TOUR[tourKey];
+    // Option A: inline
+    let tour = TOURS[tourKey];
+
+    // Option B: load JSON (uncomment if you want)
+    // let tour = await loadTourJson(`${BASE}/tour/${tourKey}.json`);
+
     if (!tour) throw new Error(`Unknown tour: ${tourKey}`);
 
     pano.currentTour = tour;
     pano.currentNode = null;
+    pano.hotspotPitchDeg = tour.hotspotPitchDeg ?? -35;
 
-    // Put camera at a tiny distance from origin, looking at origin.
-    // (OrbitControls needs a non-zero radius)
+    // Panorama camera setup
     camera.position.set(0, 0, 0.01);
     controls.target.set(0, 0, 0);
     controls.update();
@@ -591,7 +667,7 @@ const TOUR = {
   async function exitTour() {
     await setFade(true);
 
-    tourPanel.style.display = "none";
+    clearHotspots();
     pano.currentTour = null;
     pano.currentNode = null;
 
@@ -601,30 +677,28 @@ const TOUR = {
     await setFade(false);
   }
 
+  backBtn.addEventListener("click", () => exitTour());
+
   // ---------------- CLICK: fly-in then tour ----------------
   renderer.domElement.addEventListener("click", async (e) => {
     if (!root || mode !== "building") return;
 
     setPointerFromEvent(e);
     raycaster.setFromCamera(pointer, camera);
-
     const hits = raycaster.intersectObjects(pickMeshes, true);
     if (!hits.length) return;
 
     const key = findKeyByWalkingParents(hits[0].object);
     if (!key) return;
 
-    const entry = ENTRY[key] || ENTRY["EG"];
+    const entry = ENTRY[key] || ENTRY.EG;
     const tourKey = tourKeyFromFloorKey(key);
 
     try {
       if (loaderEl) loaderEl.style.display = "block";
       if (loaderInfo) loaderInfo.textContent = `Entering ${key}…`;
 
-      // Smooth fly first
       await flyCameraTo(entry, 1100);
-
-      // Crossfade into the tour
       await enterTour(tourKey);
 
       if (loaderEl) loaderEl.style.display = "none";
@@ -640,9 +714,11 @@ const TOUR = {
   function animate() {
     requestAnimationFrame(animate);
     controls.update();
+    updateHotspotPositions();
     renderer.render(scene, camera);
   }
   animate();
 
-  return { loadModel };
+  // auto-load building when you call viewer.loadModel()
+  return { loadModel, exitTour };
 }
