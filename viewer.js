@@ -56,10 +56,10 @@ export function Viewer() {
       start: "p1",
       hotspotPitchDeg: -35,
       nodes: {
-        p1: { title: "Spot 1", src: `${BASE}/panos/W1/01.png`, pos: [0, 0, 0],  yawDeg: 0,   links: ["p2", "p3"] },
-        p2: { title: "Spot 2", src: `${BASE}/panos/W1/02.png`, pos: [3, 0, 1],  yawDeg: 90,  links: ["p1", "p4"] },
-        p3: { title: "Spot 3", src: `${BASE}/panos/W1/03.png`, pos: [-2,0, 2],  yawDeg: -45, links: ["p1", "p4"] },
-        p4: { title: "Spot 4", src: `${BASE}/panos/W1/04.png`, pos: [5, 0, 2],  yawDeg: 130, links: ["p2", "p3"] },
+        p1: { title: "Spot 1", src: `${BASE}/panos/W1/01.png`, pos: [0, 0, 0],  yawDeg: -85,   links: ["p2", "p3"] },
+        p2: { title: "Spot 2", src: `${BASE}/panos/W1/02.png`, pos: [3, 0, 1],  yawDeg: -90,  links: ["p1", "p4"] },
+        p3: { title: "Spot 3", src: `${BASE}/panos/W1/03.png`, pos: [-2,0, 2],  yawDeg: -115, links: ["p1", "p4"] },
+        p4: { title: "Spot 4", src: `${BASE}/panos/W1/04.png`, pos: [5, 0, 2],  yawDeg: -130, links: ["p2", "p3"] },
       },
     },
   };
