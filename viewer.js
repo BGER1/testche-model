@@ -42,20 +42,46 @@ export function Viewer() {
   // One apartment (W1) with 6 panorama photos.
   // Replace the file paths with your real ones.
   // You can later map floor->apartment (EG->W1 etc.). For now: clicking any floor enters W1.
-  const BASE = "/testche-model"; // GitHub Pages repo base
-  const TOUR = {
-    W1: {
-      start: "p1",
-      nodes: {
-        p1: { title: "Wohnzimmer", src: `${BASE}/panos/W1/01.jpg`, links: [{ to: "p2", label: "→ Küche" }, { to: "p3", label: "→ Gang" }] },
-        p2: { title: "Küche",      src: `${BASE}/panos/W1/02.jpg`, links: [{ to: "p1", label: "→ Wohnzimmer" }, { to: "p4", label: "→ Bad" }] },
-        p3: { title: "Gang",       src: `${BASE}/panos/W1/03.jpg`, links: [{ to: "p1", label: "→ Wohnzimmer" }, { to: "p5", label: "→ Schlafzimmer" }] },
-        p4: { title: "Bad",        src: `${BASE}/panos/W1/04.jpg`, links: [{ to: "p2", label: "→ Küche" }] },
-        p5: { title: "Schlafzimmer",src:`${BASE}/panos/W1/05.jpg`, links: [{ to: "p3", label: "→ Gang" }, { to: "p6", label: "→ Balkon" }] },
-        p6: { title: "Balkon",     src: `${BASE}/panos/W1/06.jpg`, links: [{ to: "p5", label: "→ Schlafzimmer" }] },
-      }
-    }
-  };
+const BASE = "/testche-model"; // GitHub Pages repo base
+const TOUR = {
+  W1: {
+    start: "p1",
+    nodes: {
+      p1: {
+        title: "Spot 1",
+        src: `${BASE}/panos/W1/01.png`,
+        links: [
+          { to: "p2", label: "→ Spot 2" },
+          { to: "p3", label: "→ Spot 3" },
+        ],
+      },
+      p2: {
+        title: "Spot 2",
+        src: `${BASE}/panos/W1/02.png`,
+        links: [
+          { to: "p1", label: "→ Spot 1" },
+          { to: "p4", label: "→ Spot 4" },
+        ],
+      },
+      p3: {
+        title: "Spot 3",
+        src: `${BASE}/panos/W1/03.png`,
+        links: [
+          { to: "p1", label: "→ Spot 1" },
+          { to: "p4", label: "→ Spot 4" },
+        ],
+      },
+      p4: {
+        title: "Spot 4",
+        src: `${BASE}/panos/W1/04.png`,
+        links: [
+          { to: "p2", label: "→ Spot 2" },
+          { to: "p3", label: "→ Spot 3" },
+        ],
+      },
+    },
+  },
+};
 
   // Map a clicked floor -> which tour to open
   function tourKeyFromFloorKey(floorKey) {
