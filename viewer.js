@@ -10,9 +10,7 @@ export function Viewer() {
   const infoRows = document.getElementById("infoRows");
   const panelNote = document.getElementById("panelNote");
 
-  const emptyState = document.getElementById("emptyState");
   const detailsCard = document.getElementById("detailsCard");
-
   const detailsTitle = document.getElementById("detailsTitle");
   const detailsSubtitle = document.getElementById("detailsSubtitle");
   const detailsBadge = document.getElementById("detailsBadge");
@@ -30,9 +28,18 @@ export function Viewer() {
   const BASE = "/testche-model";
   const BUILDING_URL = `${BASE}/models/Testche.glb`;
 
-  // Diese Daten kannst du später einfach austauschen
-  // Wichtig: "key" muss zum Floor-Namen im Modell passen (EG, 1OG, 2OG, ...)
-  const units = [
+  // Google Sheets:
+  // 1) Sheet muss öffentlich / publishbar sein
+  // 2) Hier DEINE Werte einsetzen
+  const SHEET_ID = "PASTE_YOUR_GOOGLE_SHEET_ID_HERE";
+  const SHEET_GID = "0";
+
+  // Erwartete Spaltennamen in Google Sheets:
+  // key | name | floor | size | price | status | rooms | availability | orientation | outdoor | description
+  const SHEET_URL =
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${SHEET_GID}&tqx=out:json`;
+
+  let units = [
     {
       key: "EG",
       name: "Wohnung EG-01",
@@ -44,7 +51,7 @@ export function Viewer() {
       availability: "Sofort verfügbar",
       orientation: "Süd-West",
       outdoor: "Terrasse 14 m²",
-      description: "Helle Erdgeschosswohnung mit offenem Wohnbereich, großzügiger Terrasse und ruhiger Ausrichtung zum Innenhof."
+      description: "Helle Erdgeschosswohnung mit offenem Wohnbereich."
     },
     {
       key: "1OG",
@@ -57,7 +64,7 @@ export function Viewer() {
       availability: "Reserviert",
       orientation: "Süd",
       outdoor: "Balkon 8 m²",
-      description: "Kompakte Familienwohnung mit guter Raumaufteilung, Balkon und viel Tageslicht."
+      description: "Kompakte Familienwohnung mit Balkon."
     },
     {
       key: "2OG",
@@ -70,7 +77,7 @@ export function Viewer() {
       availability: "Ab sofort",
       orientation: "Süd-Ost",
       outdoor: "Loggia 7 m²",
-      description: "Moderne Wohnung mit offener Küche, freundlicher Belichtung und hochwertiger Grundstruktur."
+      description: "Moderne Wohnung mit offener Küche."
     },
     {
       key: "3OG",
@@ -83,7 +90,7 @@ export function Viewer() {
       availability: "Ab Mai 2026",
       orientation: "West",
       outdoor: "Balkon 11 m²",
-      description: "Großzügige Einheit mit repräsentativem Wohnraum, guter Aussicht und angenehmer Abendsonne."
+      description: "Großzügige Einheit mit guter Aussicht."
     },
     {
       key: "4OG",
@@ -96,7 +103,7 @@ export function Viewer() {
       availability: "Nicht verfügbar",
       orientation: "Süd-West",
       outdoor: "Dachterrasse 28 m²",
-      description: "Penthouse mit großzügiger Terrasse und freiem Blick. Diese Einheit ist bereits verkauft."
+      description: "Penthouse mit großzügiger Terrasse."
     }
   ];
 
@@ -113,8 +120,6 @@ export function Viewer() {
   };
 
   // ---------------- THREE SETUP ----------------
-  wrapper.style.position = "relative";
-
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
 
@@ -125,10 +130,9 @@ export function Viewer() {
     alpha: false
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(wrapper.clientWidth, wrapper.clientHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
+  renderer.toneMappingExposure = 0.98;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   wrapper.appendChild(renderer.domElement);
@@ -139,42 +143,40 @@ export function Viewer() {
   controls.rotateSpeed = 0.8;
   controls.minDistance = 4;
   controls.maxDistance = 120;
-  controls.maxPolarAngle = Math.PI / 2 - 0.03; // nicht unter das Modell schauen
-  controls.minPolarAngle = 0.15;
+  controls.maxPolarAngle = Math.PI / 2 - 0.03;
+  controls.minPolarAngle = 0.12;
   controls.screenSpacePanning = false;
 
   // ---------------- LIGHTING ----------------
-  // weich, hell, leicht "sunlight"-mäßig
-  const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+  // Neutrales Sonnenlicht statt warm/beige
+  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   scene.add(ambient);
 
-  const hemi = new THREE.HemisphereLight(0xffffff, 0xe9edf5, 0.85);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.55);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xfff1dd, 2.2);
-  sun.position.set(18, 26, 14);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+  sun.position.set(24, 32, 18);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.bias = -0.00015;
-  sun.shadow.normalBias = 0.02;
+  sun.shadow.bias = -0.00008;
+  sun.shadow.normalBias = 0.015;
   scene.add(sun);
 
-  const fill = new THREE.DirectionalLight(0xffffff, 0.6);
-  fill.position.set(-10, 12, -8);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+  fill.position.set(-12, 14, -10);
   scene.add(fill);
 
-  // Schattenfänger-Boden
-  const groundMat = new THREE.ShadowMaterial({ opacity: 0.14 });
+  // Unsichtbarer Schattenfänger
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(1000, 1000),
-    groundMat
+    new THREE.ShadowMaterial({ opacity: 0.18 })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.y = 0;
   ground.receiveShadow = true;
+  ground.position.y = 0;
   scene.add(ground);
 
-  // ---------------- RESIZE ----------------
   function resize() {
     const w = wrapper.clientWidth;
     const h = wrapper.clientHeight;
@@ -186,6 +188,58 @@ export function Viewer() {
   window.addEventListener("resize", resize);
   resize();
 
+  // ---------------- DATA ----------------
+  async function fetchSheetData() {
+    if (!SHEET_ID || SHEET_ID === "PASTE_YOUR_GOOGLE_SHEET_ID_HERE") {
+      console.warn("Google Sheet ID not set. Using fallback data.");
+      return units;
+    }
+
+    try {
+      const res = await fetch(SHEET_URL, { cache: "no-store" });
+      const text = await res.text();
+
+      const jsonText = text
+        .replace("/*O_o*/", "")
+        .replace(/^google\.visualization\.Query\.setResponse\(/, "")
+        .replace(/\);\s*$/, "");
+
+      const data = JSON.parse(jsonText);
+      const cols = data.table.cols.map(c => c.label || c.id || "");
+      const rows = data.table.rows || [];
+
+      const parsed = rows.map((row) => {
+        const obj = {};
+        cols.forEach((colName, i) => {
+          const cell = row.c?.[i];
+          obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
+        });
+        return {
+          key: String(obj.key || "").trim(),
+          name: String(obj.name || "").trim(),
+          floor: String(obj.floor || "").trim(),
+          size: String(obj.size || "").trim(),
+          price: String(obj.price || "").trim(),
+          status: String(obj.status || "").trim().toLowerCase(),
+          rooms: String(obj.rooms || "").trim(),
+          availability: String(obj.availability || "").trim(),
+          orientation: String(obj.orientation || "").trim(),
+          outdoor: String(obj.outdoor || "").trim(),
+          description: String(obj.description || "").trim()
+        };
+      }).filter(u => u.key);
+
+      if (parsed.length) {
+        units = parsed;
+      }
+
+      return units;
+    } catch (err) {
+      console.error("Failed to load sheet data:", err);
+      return units;
+    }
+  }
+
   // ---------------- MODEL ----------------
   const gltfLoader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
@@ -196,10 +250,8 @@ export function Viewer() {
   let pickMeshes = [];
   const floorGroups = new Map();
 
-  // Hover/selection
   let hoveredKey = null;
   let selectedKey = null;
-
   const originalMaterials = new WeakMap();
 
   function statusBadge(status) {
@@ -235,6 +287,27 @@ export function Viewer() {
     console.log("Floor groups found:", [...floorGroups.keys()]);
   }
 
+  function normalizeMaterialForNeutralLook(material) {
+    if (!material) return;
+
+    // Kein künstlicher Beige-Stich
+    if ("color" in material && material.color) {
+      const hsl = {};
+      material.color.getHSL(hsl);
+
+      // sehr helle, schwach gesättigte Farben näher an weiß ziehen
+      if (hsl.l > 0.6 && hsl.s < 0.2) {
+        material.color.lerp(new THREE.Color(0xffffff), 0.25);
+      }
+    }
+
+    // Für SketchUp-Exporte oft natürlicher
+    if ("metalness" in material) material.metalness = 0.0;
+    if ("roughness" in material) material.roughness = Math.min(1, Math.max(0.72, material.roughness ?? 0.85));
+
+    material.needsUpdate = true;
+  }
+
   function cacheOriginalMaterial(mesh) {
     if (!originalMaterials.has(mesh)) {
       originalMaterials.set(mesh, mesh.material);
@@ -252,7 +325,7 @@ export function Viewer() {
         mat.emissive.copy(tintColor);
         mat.emissiveIntensity = strength;
       } else if ("color" in mat && mat.color) {
-        const mixed = mat.color.clone().lerp(tintColor, strength * 0.35);
+        const mixed = mat.color.clone().lerp(tintColor, strength * 0.30);
         mat.color.copy(mixed);
       }
 
@@ -269,9 +342,7 @@ export function Viewer() {
 
   function restoreMeshMaterial(mesh) {
     const original = originalMaterials.get(mesh);
-    if (original) {
-      mesh.material = original;
-    }
+    if (original) mesh.material = original;
   }
 
   function tintGroup(key, tintColor, strength = 0.18) {
@@ -295,19 +366,16 @@ export function Viewer() {
   }
 
   function refreshVisualState() {
-    // alles zurück
     for (const key of floorGroups.keys()) {
       restoreGroup(key);
     }
 
-    // Auswahl bleibt leicht bestehen
     if (selectedKey) {
       const unit = getUnitByKey(selectedKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
       tintGroup(selectedKey, color, 0.14);
     }
 
-    // Hover liegt über Auswahl
     if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
@@ -342,12 +410,10 @@ export function Viewer() {
 
   function showDetails(unit) {
     if (!unit) {
-      emptyState?.classList.remove("is-hidden");
       detailsCard?.classList.add("is-hidden");
       return;
     }
 
-    emptyState?.classList.add("is-hidden");
     detailsCard?.classList.remove("is-hidden");
 
     detailsTitle.textContent = unit.name;
@@ -355,13 +421,13 @@ export function Viewer() {
     detailsBadge.className = `badge ${unit.status}`;
     detailsBadge.textContent = STATUS_LABEL[unit.status] || unit.status;
 
-    detailsSize.textContent = unit.size;
-    detailsPrice.textContent = unit.price;
-    detailsRooms.textContent = unit.rooms;
-    detailsAvailability.textContent = unit.availability;
-    detailsOrientation.textContent = unit.orientation;
-    detailsOutdoor.textContent = unit.outdoor;
-    detailsDescription.textContent = unit.description;
+    detailsSize.textContent = unit.size || "—";
+    detailsPrice.textContent = unit.price || "—";
+    detailsRooms.textContent = unit.rooms || "—";
+    detailsAvailability.textContent = unit.availability || "—";
+    detailsOrientation.textContent = unit.orientation || "—";
+    detailsOutdoor.textContent = unit.outdoor || "—";
+    detailsDescription.textContent = unit.description || "—";
 
     if (panelNote) {
       panelNote.textContent = `${unit.name} ausgewählt.`;
@@ -386,7 +452,7 @@ export function Viewer() {
 
     camera.position.set(
       center.x + dist * 0.95,
-      center.y + dist * 0.55,
+      center.y + dist * 0.52,
       center.z + dist * 0.95
     );
 
@@ -396,8 +462,7 @@ export function Viewer() {
     controls.minDistance = Math.max(4, maxDim * 0.35);
     controls.maxDistance = Math.max(20, maxDim * 4.5);
 
-    // Schattenkamera an Modell anpassen
-    const shadowRange = Math.max(size.x, size.z) * 1.2;
+    const shadowRange = Math.max(size.x, size.z) * 1.25;
     sun.shadow.camera.left = -shadowRange;
     sun.shadow.camera.right = shadowRange;
     sun.shadow.camera.top = shadowRange;
@@ -405,61 +470,62 @@ export function Viewer() {
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = Math.max(100, size.y * 8);
 
-    // Ground knapp unter Modell setzen
-    ground.position.y = box.min.y - 0.02;
+    ground.position.y = box.min.y - 0.03;
   }
 
-  function loadModel(url = BUILDING_URL) {
-    if (loaderEl) loaderEl.style.display = "block";
-    if (loaderInfo) loaderInfo.textContent = "Loading…";
+  function loadModel(url) {
+    return new Promise((resolve, reject) => {
+      if (loaderEl) loaderEl.style.display = "block";
+      if (loaderInfo) loaderInfo.textContent = "Loading…";
 
-    gltfLoader.load(
-      url,
-      (gltf) => {
-        root = gltf.scene;
-        window.root = root;
+      gltfLoader.load(
+        url,
+        (gltf) => {
+          root = gltf.scene;
+          window.root = root;
+          pickMeshes = [];
 
-        root.traverse((o) => {
-          if (o.isMesh) {
-            pickMeshes.push(o);
-            o.castShadow = true;
-            o.receiveShadow = true;
+          root.traverse((o) => {
+            if (o.isMesh) {
+              pickMeshes.push(o);
+              o.castShadow = true;
+              o.receiveShadow = true;
 
-            if (o.material) {
               if (Array.isArray(o.material)) {
-                o.material.forEach((m) => {
-                  if (!m) return;
-                  m.needsUpdate = true;
-                });
+                o.material.forEach(normalizeMaterialForNeutralLook);
               } else {
-                o.material.needsUpdate = true;
+                normalizeMaterialForNeutralLook(o.material);
               }
             }
+          });
+
+          scene.add(root);
+          collectFloorGroups();
+          fitCamera(root);
+
+          if (loaderEl) loaderEl.style.display = "none";
+          if (loaderInfo) loaderInfo.textContent = "";
+
+          resolve(root);
+        },
+        (ev) => {
+          if (loaderInfo) {
+            if (ev.total && ev.total > 0) {
+              const p = Math.min(99, Math.round((ev.loaded / ev.total) * 100));
+              loaderInfo.textContent = `Loading… ${p}%`;
+            } else {
+              loaderInfo.textContent = "Loading…";
+            }
           }
-        });
-
-        scene.add(root);
-        collectFloorGroups();
-        fitCamera(root);
-
-        if (loaderEl) loaderEl.style.display = "none";
-        if (loaderInfo) loaderInfo.textContent = "";
-
-        renderTable(null);
-        showDetails(null);
-      },
-      (ev) => {
-        if (loaderInfo && ev.total) {
-          const p = Math.round((ev.loaded / ev.total) * 100);
-          loaderInfo.textContent = `Loading… ${p}%`;
+        },
+        (err) => {
+          console.error(err);
+          if (loaderEl) loaderEl.style.display = "none";
+          if (loaderInfo) loaderInfo.textContent = "Fehler beim Laden.";
+          reject(err);
         }
-      },
-      (err) => {
-        console.error(err);
-        if (loaderEl) loaderEl.style.display = "none";
-        if (loaderInfo) loaderInfo.textContent = "Fehler beim Laden.";
-      }
-    );
+      );
+    });
   }
 
   // ---------------- POINTER / RAYCAST ----------------
@@ -496,7 +562,7 @@ export function Viewer() {
       if (panelNote && selectedKey) {
         panelNote.textContent = `${getUnitByKey(selectedKey)?.name || ""} ausgewählt.`;
       } else if (panelNote) {
-        panelNote.textContent = "Hover über eine Etage, um den Status farblich anzuzeigen.";
+        panelNote.textContent = "Hover zeigt den Wohnungsstatus farblich.";
       }
       return;
     }
@@ -530,7 +596,7 @@ export function Viewer() {
     if (panelNote && selectedKey) {
       panelNote.textContent = `${getUnitByKey(selectedKey)?.name || ""} ausgewählt.`;
     } else if (panelNote) {
-      panelNote.textContent = "Hover über eine Etage, um den Status farblich anzuzeigen.";
+      panelNote.textContent = "Hover zeigt den Wohnungsstatus farblich.";
     }
   });
 
@@ -561,7 +627,6 @@ export function Viewer() {
     const dist = Math.hypot(dx, dy);
     const dt = performance.now() - clickState.downTime;
 
-    // Drag = kein Click
     if (dist > CLICK_MOVE_PX || dt > CLICK_MAX_MS) return;
     if (!root) return;
 
@@ -577,17 +642,30 @@ export function Viewer() {
     selectUnit(key);
   });
 
-  // ---------------- ANIMATION ----------------
+  // ---------------- INIT ----------------
+  async function init() {
+    renderTable(null);
+    showDetails(null);
+
+    await fetchSheetData();
+    renderTable(null);
+
+    await loadModel(BUILDING_URL);
+
+    if (loaderInfo) loaderInfo.textContent = "Loading… 100%";
+    setTimeout(() => {
+      if (loaderEl) loaderEl.style.display = "none";
+      if (loaderInfo) loaderInfo.textContent = "";
+    }, 120);
+  }
+
   function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
   }
+
   animate();
 
-  // Initial UI
-  renderTable(null);
-  showDetails(null);
-
-  return { loadModel };
+  return { init };
 }
