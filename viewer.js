@@ -190,7 +190,7 @@ const SHEET_GID = "0";
 
   // ---------------- DATA ----------------
 async function fetchSheetData() {
-  if (!SHEET_ID || SHEET_ID === "1wp3hwv9EFidEjsW-FdtniqcdWx_H-VQe_LcrQhelf3k") {
+  if (!SHEET_ID) {
     console.warn("Google Sheet ID not set. Using fallback data.");
     return units;
   }
@@ -199,8 +199,6 @@ async function fetchSheetData() {
     const res = await fetch(SHEET_URL, { cache: "no-store" });
     const text = await res.text();
 
-    // Google GViz response looks like:
-    // google.visualization.Query.setResponse({...});
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
 
