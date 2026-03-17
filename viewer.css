@@ -45,29 +45,6 @@ body {
   outline: none;
 }
 
-.hud {
-  position: absolute;
-  left: 16px;
-  top: 16px;
-  background: rgba(255,255,255,0.92);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 14px;
-  backdrop-filter: blur(8px);
-  box-shadow: var(--shadow);
-  z-index: 5;
-}
-
-.hud-title {
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.hud-hint {
-  font-size: 12px;
-  color: var(--muted);
-}
-
 .panel {
   height: 100vh;
   background: var(--panel-bg);
@@ -177,16 +154,6 @@ body {
   background: rgba(255, 87, 87, 0.14);
   color: #c13a3a;
   border-color: rgba(255, 87, 87, 0.22);
-}
-
-.empty-state {
-  padding: 14px;
-  border-radius: 12px;
-  background: #fafafa;
-  border: 1px dashed var(--border);
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .details-card {
