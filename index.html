@@ -7,7 +7,6 @@
 
   <link rel="stylesheet" href="./viewer.css" />
 
-  <!-- Import map: "three" wird im Browser auf CDN gemappt -->
   <script type="importmap">
   {
     "imports": {
@@ -24,7 +23,9 @@
 
       <div class="hud">
         <div class="hud-title">Testche</div>
-        <div class="hud-hint">Hover: Etage highlight · Click: (später Zoom/Tour)</div>
+        <div class="hud-hint">
+          Hover: Status-Farbe · Click: Wohnungsdetails rechts
+        </div>
       </div>
 
       <div class="loader" id="loader">
@@ -36,26 +37,80 @@
     <aside class="panel">
       <div class="panel-header">
         <div class="panel-title">Wohnungsfinder</div>
-        <div class="panel-subtitle">Etagenübersicht</div>
+        <div class="panel-subtitle">Übersicht & Details</div>
       </div>
 
-      <table class="info-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Floor</th>
-            <th>Größe</th>
-            <th>Preis</th>
-            <th>Verfügbarkeit</th>
-          </tr>
-        </thead>
-        <tbody id="infoRows">
-          <!-- JS füllt hier Zeilen ein -->
-        </tbody>
-      </table>
+      <div class="panel-section">
+        <div class="section-title">Einheiten</div>
+
+        <table class="info-table">
+          <thead>
+            <tr>
+              <th>Wohnung</th>
+              <th>Etage</th>
+              <th>Größe</th>
+              <th>Preis</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="infoRows">
+            <!-- JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-section detail-section">
+        <div class="section-title">Details</div>
+
+        <div id="emptyState" class="empty-state">
+          Klicke auf eine Etage / Wohnung im Gebäude oder auf eine Zeile in der Tabelle.
+        </div>
+
+        <div id="detailsCard" class="details-card is-hidden">
+          <div class="details-top">
+            <div>
+              <div class="details-title" id="detailsTitle">Wohnung</div>
+              <div class="details-subtitle" id="detailsSubtitle">Etage</div>
+            </div>
+            <div id="detailsBadge" class="badge">Status</div>
+          </div>
+
+          <div class="details-grid">
+            <div class="detail-item">
+              <div class="detail-label">Größe</div>
+              <div class="detail-value" id="detailsSize">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Preis</div>
+              <div class="detail-value" id="detailsPrice">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Zimmer</div>
+              <div class="detail-value" id="detailsRooms">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Verfügbarkeit</div>
+              <div class="detail-value" id="detailsAvailability">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Ausrichtung</div>
+              <div class="detail-value" id="detailsOrientation">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Freifläche</div>
+              <div class="detail-value" id="detailsOutdoor">—</div>
+            </div>
+          </div>
+
+          <div class="detail-description-wrap">
+            <div class="detail-label">Beschreibung</div>
+            <div class="detail-description" id="detailsDescription">—</div>
+          </div>
+        </div>
+      </div>
 
       <div class="panel-note" id="panelNote">
-        Hover über EG / 1.OG / DG, um Details zu sehen.
+        Das GLB bleibt in Originalfarben. Nur beim Hover wird je nach Status leicht eingefärbt.
       </div>
     </aside>
   </div>
