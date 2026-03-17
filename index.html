@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <title>Testche</title>
+  <title>Wohnungsfinder</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <link rel="stylesheet" href="./viewer.css" />
@@ -20,13 +20,6 @@
   <div class="app">
     <div class="viewer-area">
       <div id="viewerCanvasWrapper"></div>
-
-      <div class="hud">
-        <div class="hud-title">Testche</div>
-        <div class="hud-hint">
-          Hover: Status-Farbe · Click: Wohnungsdetails rechts
-        </div>
-      </div>
 
       <div class="loader" id="loader">
         <div class="loader-text" id="loaderInfo">Loading…</div>
@@ -53,18 +46,12 @@
               <th>Status</th>
             </tr>
           </thead>
-          <tbody id="infoRows">
-            <!-- JS -->
-          </tbody>
+          <tbody id="infoRows"></tbody>
         </table>
       </div>
 
       <div class="panel-section detail-section">
         <div class="section-title">Details</div>
-
-        <div id="emptyState" class="empty-state">
-          Klicke auf eine Etage / Wohnung im Gebäude oder auf eine Zeile in der Tabelle.
-        </div>
 
         <div id="detailsCard" class="details-card is-hidden">
           <div class="details-top">
@@ -110,7 +97,7 @@
       </div>
 
       <div class="panel-note" id="panelNote">
-        Das GLB bleibt in Originalfarben. Nur beim Hover wird je nach Status leicht eingefärbt.
+        Hover zeigt den Wohnungsstatus farblich. Klick öffnet die Details rechts.
       </div>
     </aside>
   </div>
