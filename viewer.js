@@ -31,8 +31,8 @@ export function Viewer() {
   // Google Sheets:
   // 1) Sheet muss öffentlich / publishbar sein
   // 2) Hier DEINE Werte einsetzen
-  const SHEET_ID = "PASTE_YOUR_GOOGLE_SHEET_ID_HERE";
-  const SHEET_GID = "0";
+const SHEET_ID = "1wp3hwv9EFidEjsW-FdtniqcdWx_H-VQe_LcrQhelf3k";
+const SHEET_GID = "0";
 
   // Erwartete Spaltennamen in Google Sheets:
   // key | name | floor | size | price | status | rooms | availability | orientation | outdoor | description
