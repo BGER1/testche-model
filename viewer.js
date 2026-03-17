@@ -189,57 +189,67 @@ const SHEET_GID = "0";
   resize();
 
   // ---------------- DATA ----------------
-  async function fetchSheetData() {
-    if (!SHEET_ID || SHEET_ID === "PASTE_YOUR_GOOGLE_SHEET_ID_HERE") {
-      console.warn("Google Sheet ID not set. Using fallback data.");
-      return units;
-    }
-
-    try {
-      const res = await fetch(SHEET_URL, { cache: "no-store" });
-      const text = await res.text();
-
-      const jsonText = text
-        .replace("/*O_o*/", "")
-        .replace(/^google\.visualization\.Query\.setResponse\(/, "")
-        .replace(/\);\s*$/, "");
-
-      const data = JSON.parse(jsonText);
-      const cols = data.table.cols.map(c => c.label || c.id || "");
-      const rows = data.table.rows || [];
-
-      const parsed = rows.map((row) => {
-        const obj = {};
-        cols.forEach((colName, i) => {
-          const cell = row.c?.[i];
-          obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
-        });
-        return {
-          key: String(obj.key || "").trim(),
-          name: String(obj.name || "").trim(),
-          floor: String(obj.floor || "").trim(),
-          size: String(obj.size || "").trim(),
-          price: String(obj.price || "").trim(),
-          status: String(obj.status || "").trim().toLowerCase(),
-          rooms: String(obj.rooms || "").trim(),
-          availability: String(obj.availability || "").trim(),
-          orientation: String(obj.orientation || "").trim(),
-          outdoor: String(obj.outdoor || "").trim(),
-          description: String(obj.description || "").trim()
-        };
-      }).filter(u => u.key);
-
-      if (parsed.length) {
-        units = parsed;
-      }
-
-      return units;
-    } catch (err) {
-      console.error("Failed to load sheet data:", err);
-      return units;
-    }
+async function fetchSheetData() {
+  if (!SHEET_ID || SHEET_ID === "1wp3hwv9EFidEjsW-FdtniqcdWx_H-VQe_LcrQhelf3k") {
+    console.warn("Google Sheet ID not set. Using fallback data.");
+    return units;
   }
 
+  try {
+    const res = await fetch(SHEET_URL, { cache: "no-store" });
+    const text = await res.text();
+
+    // Google GViz response looks like:
+    // google.visualization.Query.setResponse({...});
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error("Google Sheets response could not be parsed.");
+    }
+
+    const jsonText = text.slice(start, end + 1);
+    const data = JSON.parse(jsonText);
+
+    const cols = (data.table?.cols || []).map(c => c.label || c.id || "");
+    const rows = data.table?.rows || [];
+
+    const parsed = rows.map((row) => {
+      const obj = {};
+
+      cols.forEach((colName, i) => {
+        const cell = row.c?.[i];
+        obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
+      });
+
+      return {
+        key: String(obj.key || "").trim(),
+        name: String(obj.name || "").trim(),
+        floor: String(obj.floor || "").trim(),
+        size: String(obj.size || "").trim(),
+        price: String(obj.price || "").trim(),
+        status: String(obj.status || "").trim().toLowerCase(),
+        rooms: String(obj.rooms || "").trim(),
+        availability: String(obj.availability || "").trim(),
+        orientation: String(obj.orientation || "").trim(),
+        outdoor: String(obj.outdoor || "").trim(),
+        description: String(obj.description || "").trim()
+      };
+    }).filter(u => u.key);
+
+    if (parsed.length) {
+      units = parsed;
+      console.log("Loaded units from Google Sheets:", units);
+    } else {
+      console.warn("Google Sheets loaded, but no valid rows were found. Using fallback data.");
+    }
+
+    return units;
+  } catch (err) {
+    console.error("Failed to load sheet data:", err);
+    return units;
+  }
+}
   // ---------------- MODEL ----------------
   const gltfLoader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
