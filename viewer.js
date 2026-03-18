@@ -17,93 +17,52 @@ export function Viewer() {
   const detailsSize = document.getElementById("detailsSize");
   const detailsPrice = document.getElementById("detailsPrice");
   const detailsRooms = document.getElementById("detailsRooms");
-  const detailsAvailability = document.getElementById("detailsAvailability");
+  const detailsFloor = document.getElementById("detailsFloor");
   const detailsOrientation = document.getElementById("detailsOrientation");
   const detailsOutdoor = document.getElementById("detailsOutdoor");
   const detailsDescription = document.getElementById("detailsDescription");
+  const detailsPlan = document.getElementById("detailsPlan");
+  const detailsPlanEmpty = document.getElementById("detailsPlanEmpty");
 
   if (!wrapper) throw new Error("Missing #viewerCanvasWrapper");
 
   // ---------------- CONFIG ----------------
-  const BASE = "/testche-model";
-  const BUILDING_URL = `${BASE}/models/Testche.glb`;
+  const BUILDING_URL =
+    "https://dhhvajuaoebokmqswxad.supabase.co/storage/v1/object/public/models/Testche.glb";
 
-  // Google Sheets:
-  // 1) Sheet muss öffentlich / publishbar sein
-  // 2) Hier DEINE Werte einsetzen
-const SHEET_ID = "1wp3hwv9EFidEjsW-FdtniqcdWx_H-VQe_LcrQhelf3k";
-const SHEET_GID = "0";
-
-  // Erwartete Spaltennamen in Google Sheets:
-  // key | name | floor | size | price | status | rooms | availability | orientation | outdoor | description
+  const SHEET_ID = "1wp3hwv9EFidEjsW-FdtniqcdWx_H-VQe_LcrQhelf3k";
+  const SHEET_GID = "0";
   const SHEET_URL =
-    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${SHEET_GID}&tqx=out:json`;
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
 
+  // Optional: wenn du Grundrisse auch in Supabase hochlädst,
+  // dann trag in Google Sheets in der Spalte "plan" einfach komplette URLs ein.
   let units = [
     {
-      key: "EG",
-      name: "Wohnung EG-01",
+      key: "TOP1",
+      number: "Top1",
       floor: "EG",
       size: "68 m²",
       price: "€ 289.000",
       status: "free",
-      rooms: "2 Zimmer",
-      availability: "Sofort verfügbar",
+      rooms: "2",
       orientation: "Süd-West",
       outdoor: "Terrasse 14 m²",
-      description: "Helle Erdgeschosswohnung mit offenem Wohnbereich."
+      description: "Helle Wohnung mit offenem Wohnbereich.",
+      plan: ""
     },
     {
-      key: "1OG",
-      name: "Wohnung 1.OG-01",
+      key: "TOP2",
+      number: "Top2",
       floor: "1. OG",
       size: "74 m²",
       price: "€ 315.000",
       status: "reserved",
-      rooms: "3 Zimmer",
-      availability: "Reserviert",
+      rooms: "3",
       orientation: "Süd",
       outdoor: "Balkon 8 m²",
-      description: "Kompakte Familienwohnung mit Balkon."
-    },
-    {
-      key: "2OG",
-      name: "Wohnung 2.OG-01",
-      floor: "2. OG",
-      size: "81 m²",
-      price: "€ 349.000",
-      status: "free",
-      rooms: "3 Zimmer",
-      availability: "Ab sofort",
-      orientation: "Süd-Ost",
-      outdoor: "Loggia 7 m²",
-      description: "Moderne Wohnung mit offener Küche."
-    },
-    {
-      key: "3OG",
-      name: "Wohnung 3.OG-01",
-      floor: "3. OG",
-      size: "90 m²",
-      price: "€ 389.000",
-      status: "free",
-      rooms: "4 Zimmer",
-      availability: "Ab Mai 2026",
-      orientation: "West",
-      outdoor: "Balkon 11 m²",
-      description: "Großzügige Einheit mit guter Aussicht."
-    },
-    {
-      key: "4OG",
-      name: "Penthouse 4.OG-01",
-      floor: "4. OG",
-      size: "112 m²",
-      price: "Verkauft",
-      status: "sold",
-      rooms: "4 Zimmer",
-      availability: "Nicht verfügbar",
-      orientation: "Süd-West",
-      outdoor: "Dachterrasse 28 m²",
-      description: "Penthouse mit großzügiger Terrasse."
+      description: "Kompakte Familienwohnung mit Balkon.",
+      plan: ""
     }
   ];
 
@@ -119,7 +78,7 @@ const SHEET_GID = "0";
     sold: "Verkauft"
   };
 
-  // ---------------- THREE SETUP ----------------
+  // ---------------- THREE ----------------
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
 
@@ -144,11 +103,10 @@ const SHEET_GID = "0";
   controls.minDistance = 4;
   controls.maxDistance = 120;
   controls.maxPolarAngle = Math.PI / 2 - 0.03;
-  controls.minPolarAngle = 0.12;
+  controls.minPolarAngle = 0.22;
   controls.screenSpacePanning = false;
 
-  // ---------------- LIGHTING ----------------
-  // Neutrales Sonnenlicht statt warm/beige
+  // ---------------- LIGHT ----------------
   const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   scene.add(ambient);
 
@@ -167,7 +125,6 @@ const SHEET_GID = "0";
   fill.position.set(-12, 14, -10);
   scene.add(fill);
 
-  // Unsichtbarer Schattenfänger
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(1000, 1000),
     new THREE.ShadowMaterial({ opacity: 0.18 })
@@ -189,65 +146,68 @@ const SHEET_GID = "0";
   resize();
 
   // ---------------- DATA ----------------
-async function fetchSheetData() {
-  if (!SHEET_ID) {
-    console.warn("Google Sheet ID not set. Using fallback data.");
-    return units;
+  async function fetchSheetData() {
+    if (!SHEET_ID) return units;
+
+    try {
+      const res = await fetch(SHEET_URL, { cache: "no-store" });
+      const text = await res.text();
+
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+
+      if (start === -1 || end === -1 || end <= start) {
+        throw new Error("Google Sheets response could not be parsed.");
+      }
+
+      const jsonText = text.slice(start, end + 1);
+      const data = JSON.parse(jsonText);
+
+      const cols = (data.table?.cols || []).map(c => (c.label || c.id || "").trim().toLowerCase());
+      const rows = data.table?.rows || [];
+
+      const parsed = rows.map((row) => {
+        const obj = {};
+
+        cols.forEach((colName, i) => {
+          const cell = row.c?.[i];
+          obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
+        });
+
+        const number = String(obj.number || "").trim();
+
+        return {
+          key: number.toUpperCase(),
+          number,
+          floor: String(obj.floor || "").trim(),
+          size: String(obj.size || "").trim(),
+          price: String(obj.price || "").trim(),
+          status: String(obj.status || "").trim().toLowerCase(),
+          rooms: String(obj.rooms || "").trim(),
+          orientation: String(obj.orientation || "").trim(),
+          outdoor: String(obj.outdoor || "").trim(),
+          description: String(obj.description || "").trim(),
+          plan: String(obj.plan || "").trim()
+        };
+      }).filter(u => u.key);
+
+      if (parsed.length) {
+        units = parsed;
+        console.log("Loaded units from Google Sheets:", units);
+      }
+
+      return units;
+    } catch (err) {
+      console.error("Failed to load sheet data:", err);
+      return units;
+    }
   }
 
-  try {
-    const res = await fetch(SHEET_URL, { cache: "no-store" });
-    const text = await res.text();
-
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-
-    if (start === -1 || end === -1 || end <= start) {
-      throw new Error("Google Sheets response could not be parsed.");
-    }
-
-    const jsonText = text.slice(start, end + 1);
-    const data = JSON.parse(jsonText);
-
-    const cols = (data.table?.cols || []).map(c => c.label || c.id || "");
-    const rows = data.table?.rows || [];
-
-    const parsed = rows.map((row) => {
-      const obj = {};
-
-      cols.forEach((colName, i) => {
-        const cell = row.c?.[i];
-        obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
-      });
-
-      return {
-        key: String(obj.key || "").trim(),
-        name: String(obj.name || "").trim(),
-        floor: String(obj.floor || "").trim(),
-        size: String(obj.size || "").trim(),
-        price: String(obj.price || "").trim(),
-        status: String(obj.status || "").trim().toLowerCase(),
-        rooms: String(obj.rooms || "").trim(),
-        availability: String(obj.availability || "").trim(),
-        orientation: String(obj.orientation || "").trim(),
-        outdoor: String(obj.outdoor || "").trim(),
-        description: String(obj.description || "").trim()
-      };
-    }).filter(u => u.key);
-
-    if (parsed.length) {
-      units = parsed;
-      console.log("Loaded units from Google Sheets:", units);
-    } else {
-      console.warn("Google Sheets loaded, but no valid rows were found. Using fallback data.");
-    }
-
-    return units;
-  } catch (err) {
-    console.error("Failed to load sheet data:", err);
-    return units;
+  function resolvePlanUrl(planValue) {
+    if (!planValue) return "";
+    return planValue;
   }
-}
+
   // ---------------- MODEL ----------------
   const gltfLoader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
@@ -256,7 +216,7 @@ async function fetchSheetData() {
 
   let root = null;
   let pickMeshes = [];
-  const floorGroups = new Map();
+  const unitGroups = new Map();
 
   let hoveredKey = null;
   let selectedKey = null;
@@ -270,49 +230,42 @@ async function fetchSheetData() {
     return units.find(u => u.key === key) || null;
   }
 
-  function floorKeyFromName(nameRaw) {
+  function unitKeyFromName(nameRaw) {
     const n = (nameRaw || "").toUpperCase().replace(/\s+/g, "");
-
-    if (n === "EG" || n.includes("ERDGESCHOSS")) return "EG";
-    if (n === "1OG" || n.includes("1.OG") || n.includes("OG1") || n.includes("LEVEL1") || n.includes("FLOOR1")) return "1OG";
-    if (n === "2OG" || n.includes("2.OG") || n.includes("OG2") || n.includes("LEVEL2") || n.includes("FLOOR2")) return "2OG";
-    if (n === "3OG" || n.includes("3.OG") || n.includes("OG3") || n.includes("LEVEL3") || n.includes("FLOOR3")) return "3OG";
-    if (n === "4OG" || n.includes("4.OG") || n.includes("OG4") || n.includes("LEVEL4") || n.includes("FLOOR4")) return "4OG";
-
+    if (n.includes("TOP1")) return "TOP1";
+    if (n.includes("TOP2")) return "TOP2";
+    if (n.includes("TOP3")) return "TOP3";
+    if (n.includes("TOP4")) return "TOP4";
+    if (n.includes("TOP5")) return "TOP5";
     return null;
   }
 
-  function collectFloorGroups() {
-    floorGroups.clear();
+  function collectUnitGroups() {
+    unitGroups.clear();
 
     root.traverse((obj) => {
-      const key = floorKeyFromName(obj.name);
-      if (key && !floorGroups.has(key)) {
-        floorGroups.set(key, obj);
+      const key = unitKeyFromName(obj.name);
+      if (key && !unitGroups.has(key)) {
+        unitGroups.set(key, obj);
       }
     });
 
-    console.log("Floor groups found:", [...floorGroups.keys()]);
+    console.log("Unit groups found:", [...unitGroups.keys()]);
   }
 
   function normalizeMaterialForNeutralLook(material) {
     if (!material) return;
 
-    // Kein künstlicher Beige-Stich
     if ("color" in material && material.color) {
       const hsl = {};
       material.color.getHSL(hsl);
-
-      // sehr helle, schwach gesättigte Farben näher an weiß ziehen
       if (hsl.l > 0.6 && hsl.s < 0.2) {
         material.color.lerp(new THREE.Color(0xffffff), 0.25);
       }
     }
 
-    // Für SketchUp-Exporte oft natürlicher
     if ("metalness" in material) material.metalness = 0.0;
     if ("roughness" in material) material.roughness = Math.min(1, Math.max(0.72, material.roughness ?? 0.85));
-
     material.needsUpdate = true;
   }
 
@@ -354,7 +307,7 @@ async function fetchSheetData() {
   }
 
   function tintGroup(key, tintColor, strength = 0.18) {
-    const group = floorGroups.get(key);
+    const group = unitGroups.get(key);
     if (!group) return;
 
     group.traverse((child) => {
@@ -364,7 +317,7 @@ async function fetchSheetData() {
   }
 
   function restoreGroup(key) {
-    const group = floorGroups.get(key);
+    const group = unitGroups.get(key);
     if (!group) return;
 
     group.traverse((child) => {
@@ -374,7 +327,7 @@ async function fetchSheetData() {
   }
 
   function refreshVisualState() {
-    for (const key of floorGroups.keys()) {
+    for (const key of unitGroups.keys()) {
       restoreGroup(key);
     }
 
@@ -398,7 +351,7 @@ async function fetchSheetData() {
       const isActive = activeKey === u.key;
       return `
         <tr class="${isActive ? "is-active" : ""}" data-key="${u.key}">
-          <td>${u.name}</td>
+          <td>${u.number}</td>
           <td>${u.floor}</td>
           <td>${u.size}</td>
           <td>${u.price}</td>
@@ -424,21 +377,32 @@ async function fetchSheetData() {
 
     detailsCard?.classList.remove("is-hidden");
 
-    detailsTitle.textContent = unit.name;
-    detailsSubtitle.textContent = `Etage: ${unit.floor}`;
+    detailsTitle.textContent = unit.number || "—";
+    detailsSubtitle.textContent = unit.floor ? `Floor: ${unit.floor}` : "Floor: —";
     detailsBadge.className = `badge ${unit.status}`;
     detailsBadge.textContent = STATUS_LABEL[unit.status] || unit.status;
 
     detailsSize.textContent = unit.size || "—";
     detailsPrice.textContent = unit.price || "—";
     detailsRooms.textContent = unit.rooms || "—";
-    detailsAvailability.textContent = unit.availability || "—";
+    detailsFloor.textContent = unit.floor || "—";
     detailsOrientation.textContent = unit.orientation || "—";
     detailsOutdoor.textContent = unit.outdoor || "—";
     detailsDescription.textContent = unit.description || "—";
 
+    const planUrl = resolvePlanUrl(unit.plan);
+    if (planUrl) {
+      detailsPlan.src = planUrl;
+      detailsPlan.classList.remove("is-hidden");
+      detailsPlanEmpty.style.display = "none";
+    } else {
+      detailsPlan.removeAttribute("src");
+      detailsPlan.classList.add("is-hidden");
+      detailsPlanEmpty.style.display = "block";
+    }
+
     if (panelNote) {
-      panelNote.textContent = `${unit.name} ausgewählt.`;
+      panelNote.textContent = `${unit.number} ausgewählt.`;
     }
   }
 
@@ -453,22 +417,20 @@ async function fetchSheetData() {
     const box = new THREE.Box3().setFromObject(object);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
-
     const maxDim = Math.max(size.x, size.y, size.z);
-    const fov = THREE.MathUtils.degToRad(camera.fov);
-    const dist = maxDim / (2 * Math.tan(fov / 2)) * 1.35;
 
+    // Näher und etwas niedriger
     camera.position.set(
-      center.x + dist * 0.95,
-      center.y + dist * 0.52,
-      center.z + dist * 0.95
+      center.x + maxDim * 0.72,
+      center.y + maxDim * 0.20,
+      center.z + maxDim * 0.66
     );
 
-    controls.target.copy(center);
+    controls.target.set(center.x, center.y + size.y * 0.16, center.z);
     controls.update();
 
-    controls.minDistance = Math.max(4, maxDim * 0.35);
-    controls.maxDistance = Math.max(20, maxDim * 4.5);
+    controls.minDistance = Math.max(4, maxDim * 0.30);
+    controls.maxDistance = Math.max(20, maxDim * 4.2);
 
     const shadowRange = Math.max(size.x, size.z) * 1.25;
     sun.shadow.camera.left = -shadowRange;
@@ -508,7 +470,7 @@ async function fetchSheetData() {
           });
 
           scene.add(root);
-          collectFloorGroups();
+          collectUnitGroups();
           fitCamera(root);
 
           if (loaderEl) loaderEl.style.display = "none";
@@ -536,7 +498,7 @@ async function fetchSheetData() {
     });
   }
 
-  // ---------------- POINTER / RAYCAST ----------------
+  // ---------------- POINTER ----------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
@@ -549,7 +511,7 @@ async function fetchSheetData() {
   function findKeyByWalkingParents(obj) {
     let cur = obj;
     while (cur && cur !== root) {
-      const key = floorKeyFromName(cur.name);
+      const key = unitKeyFromName(cur.name);
       if (key) return key;
       cur = cur.parent;
     }
@@ -568,7 +530,7 @@ async function fetchSheetData() {
       hoveredKey = null;
       refreshVisualState();
       if (panelNote && selectedKey) {
-        panelNote.textContent = `${getUnitByKey(selectedKey)?.name || ""} ausgewählt.`;
+        panelNote.textContent = `${getUnitByKey(selectedKey)?.number || ""} ausgewählt.`;
       } else if (panelNote) {
         panelNote.textContent = "Hover zeigt den Wohnungsstatus farblich.";
       }
@@ -590,7 +552,7 @@ async function fetchSheetData() {
       const unit = getUnitByKey(key);
       if (panelNote) {
         panelNote.textContent = unit
-          ? `${unit.name} · ${STATUS_LABEL[unit.status]}`
+          ? `${unit.number} · ${STATUS_LABEL[unit.status]}`
           : `Hover: ${key}`;
       }
     }
@@ -602,13 +564,13 @@ async function fetchSheetData() {
     refreshVisualState();
 
     if (panelNote && selectedKey) {
-      panelNote.textContent = `${getUnitByKey(selectedKey)?.name || ""} ausgewählt.`;
+      panelNote.textContent = `${getUnitByKey(selectedKey)?.number || ""} ausgewählt.`;
     } else if (panelNote) {
       panelNote.textContent = "Hover zeigt den Wohnungsstatus farblich.";
     }
   });
 
-  // ---------------- REAL CLICK DETECTION ----------------
+  // ---------------- CLICK ----------------
   const clickState = {
     downX: 0,
     downY: 0,
