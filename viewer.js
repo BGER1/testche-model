@@ -20,13 +20,11 @@ export function Viewer() {
   const detailsFloor = document.getElementById("detailsFloor");
   const detailsOrientation = document.getElementById("detailsOrientation");
   const detailsOutdoor = document.getElementById("detailsOutdoor");
-  const detailsDescription = document.getElementById("detailsDescription");
   const detailsPlan = document.getElementById("detailsPlan");
   const detailsPlanEmpty = document.getElementById("detailsPlanEmpty");
 
   if (!wrapper) throw new Error("Missing #viewerCanvasWrapper");
 
-  // ---------------- CONFIG ----------------
   const BUILDING_URL =
     "https://dhhvajuaoebokmqswxad.supabase.co/storage/v1/object/public/models/Testche.glb";
 
@@ -35,7 +33,6 @@ export function Viewer() {
   const SHEET_URL =
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
 
-  // Fallback data if Sheets does not load
   let units = [
     {
       key: "TOP1",
@@ -47,7 +44,6 @@ export function Viewer() {
       rooms: "2",
       orientation: "Süd-West",
       outdoor: "Terrasse 14 m²",
-      description: "Helle Wohnung mit offenem Wohnbereich.",
       plan: ""
     },
     {
@@ -60,7 +56,6 @@ export function Viewer() {
       rooms: "3",
       orientation: "Süd",
       outdoor: "Balkon 8 m²",
-      description: "Kompakte Familienwohnung mit Balkon.",
       plan: ""
     },
     {
@@ -73,7 +68,6 @@ export function Viewer() {
       rooms: "3",
       orientation: "Süd-Ost",
       outdoor: "Loggia 7 m²",
-      description: "Moderne Wohnung mit offener Küche.",
       plan: ""
     },
     {
@@ -86,7 +80,6 @@ export function Viewer() {
       rooms: "4",
       orientation: "West",
       outdoor: "Balkon 11 m²",
-      description: "Großzügige Einheit mit guter Aussicht.",
       plan: ""
     },
     {
@@ -99,15 +92,14 @@ export function Viewer() {
       rooms: "4",
       orientation: "Süd-West",
       outdoor: "Dachterrasse 28 m²",
-      description: "Penthouse mit großzügiger Terrasse.",
       plan: ""
     }
   ];
 
   const STATUS_COLOR = {
-    free: new THREE.Color(0x2faa60),
-    reserved: new THREE.Color(0xd4a017),
-    sold: new THREE.Color(0xc84b4b)
+    free: new THREE.Color(0x1f9d55),
+    reserved: new THREE.Color(0xc78b07),
+    sold: new THREE.Color(0xb91c1c)
   };
 
   const STATUS_LABEL = {
@@ -116,7 +108,28 @@ export function Viewer() {
     sold: "Verkauft"
   };
 
-  // ---------------- THREE ----------------
+  function normalizeUnitKey(value) {
+    const raw = String(value || "").trim().toUpperCase();
+    if (!raw) return "";
+
+    const compact = raw.replace(/\s+/g, "");
+
+    if (/^\d+$/.test(compact)) return `TOP${compact}`;
+
+    const match = compact.match(/(?:TOP|TOG)?(\d+)/);
+    if (match) return `TOP${match[1]}`;
+
+    return compact;
+  }
+
+  function normalizeStatus(value) {
+    const s = String(value || "").trim().toLowerCase();
+    if (s === "free" || s === "frei") return "free";
+    if (s === "reserved" || s === "reserviert") return "reserved";
+    if (s === "sold" || s === "verkauft") return "sold";
+    return s;
+  }
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
 
@@ -144,7 +157,6 @@ export function Viewer() {
   controls.minPolarAngle = 0.22;
   controls.screenSpacePanning = false;
 
-  // ---------------- LIGHT ----------------
   const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   scene.add(ambient);
 
@@ -183,7 +195,6 @@ export function Viewer() {
   window.addEventListener("resize", resize);
   resize();
 
-  // ---------------- DATA ----------------
   async function fetchSheetData() {
     if (!SHEET_ID) return units;
 
@@ -212,19 +223,19 @@ export function Viewer() {
           obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
         });
 
-        const number = String(obj.number || "").trim();
+        const rawNumber = String(obj.number || "").trim();
+        const normalizedKey = normalizeUnitKey(rawNumber);
 
         return {
-          key: number.toUpperCase(),
-          number,
+          key: normalizedKey,
+          number: rawNumber || normalizedKey,
           floor: String(obj.floor || "").trim(),
           size: String(obj.size || "").trim(),
           price: String(obj.price || "").trim(),
-          status: String(obj.status || "").trim().toLowerCase(),
+          status: normalizeStatus(obj.status),
           rooms: String(obj.rooms || "").trim(),
           orientation: String(obj.orientation || "").trim(),
           outdoor: String(obj.outdoor || "").trim(),
-          description: String(obj.description || "").trim(),
           plan: String(obj.plan || "").trim()
         };
       }).filter(u => u.key);
@@ -246,7 +257,6 @@ export function Viewer() {
     return planValue;
   }
 
-  // ---------------- MODEL ----------------
   const gltfLoader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/");
@@ -265,17 +275,12 @@ export function Viewer() {
   }
 
   function getUnitByKey(key) {
-    return units.find(u => u.key === key) || null;
+    const normalized = normalizeUnitKey(key);
+    return units.find(u => normalizeUnitKey(u.key) === normalized) || null;
   }
 
   function unitKeyFromName(nameRaw) {
-    const n = (nameRaw || "").toUpperCase().replace(/\s+/g, "");
-    if (n.includes("TOP1")) return "TOP1";
-    if (n.includes("TOP2")) return "TOP2";
-    if (n.includes("TOP3")) return "TOP3";
-    if (n.includes("TOP4")) return "TOP4";
-    if (n.includes("TOP5")) return "TOP5";
-    return null;
+    return normalizeUnitKey(nameRaw);
   }
 
   function collectUnitGroups() {
@@ -283,7 +288,7 @@ export function Viewer() {
 
     root.traverse((obj) => {
       const key = unitKeyFromName(obj.name);
-      if (key && !unitGroups.has(key)) {
+      if (key && /^TOP\d+$/.test(key) && !unitGroups.has(key)) {
         unitGroups.set(key, obj);
       }
     });
@@ -316,19 +321,20 @@ export function Viewer() {
     }
   }
 
-  function setMeshTint(mesh, tintColor, strength = 0.22) {
+  function setMeshTint(mesh, tintColor, strength = 0.32) {
     cacheOriginalMaterial(mesh);
 
     const applyToMaterial = (material) => {
       const mat = material.clone();
 
       if ("color" in mat && mat.color) {
-        mat.color = mat.color.clone().lerp(tintColor, strength);
+        const base = mat.color.clone();
+        mat.color.copy(base.lerp(tintColor, strength));
       }
 
       if ("emissive" in mat && mat.emissive) {
         mat.emissive = tintColor.clone();
-        mat.emissiveIntensity = 0.08;
+        mat.emissiveIntensity = 0.12;
       }
 
       mat.needsUpdate = true;
@@ -347,8 +353,8 @@ export function Viewer() {
     if (original) mesh.material = original;
   }
 
-  function tintGroup(key, tintColor, strength = 0.22) {
-    const group = unitGroups.get(key);
+  function tintGroup(key, tintColor, strength = 0.32) {
+    const group = unitGroups.get(normalizeUnitKey(key));
     if (!group) return;
 
     group.traverse((child) => {
@@ -358,7 +364,7 @@ export function Viewer() {
   }
 
   function restoreGroup(key) {
-    const group = unitGroups.get(key);
+    const group = unitGroups.get(normalizeUnitKey(key));
     if (!group) return;
 
     group.traverse((child) => {
@@ -375,21 +381,23 @@ export function Viewer() {
     if (selectedKey) {
       const unit = getUnitByKey(selectedKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
-      tintGroup(selectedKey, color, 0.18);
+      tintGroup(selectedKey, color, 0.22);
     }
 
     if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
-      tintGroup(hoveredKey, color, 0.32);
+      tintGroup(hoveredKey, color, 0.38);
     }
   }
 
   function renderTable(activeKey = null) {
     if (!infoRows) return;
 
+    const normalizedActive = normalizeUnitKey(activeKey);
+
     infoRows.innerHTML = units.map((u) => {
-      const isActive = activeKey === u.key;
+      const isActive = normalizedActive === normalizeUnitKey(u.key);
       return `
         <tr class="${isActive ? "is-active" : ""}" data-key="${u.key}">
           <td>${u.number}</td>
@@ -419,7 +427,7 @@ export function Viewer() {
     detailsCard?.classList.remove("is-hidden");
 
     detailsTitle.textContent = unit.number || "—";
-    detailsSubtitle.textContent = unit.floor ? `Floor: ${unit.floor}` : "Floor: —";
+    detailsSubtitle.textContent = unit.floor ? `Etage: ${unit.floor}` : "Etage: —";
     detailsBadge.className = `badge ${unit.status}`;
     detailsBadge.textContent = STATUS_LABEL[unit.status] || unit.status;
 
@@ -429,7 +437,6 @@ export function Viewer() {
     detailsFloor.textContent = unit.floor || "—";
     detailsOrientation.textContent = unit.orientation || "—";
     detailsOutdoor.textContent = unit.outdoor || "—";
-    detailsDescription.textContent = unit.description || "—";
 
     const planUrl = resolvePlanUrl(unit.plan);
     if (planUrl) {
@@ -448,9 +455,9 @@ export function Viewer() {
   }
 
   function selectUnit(key) {
-    selectedKey = key;
-    renderTable(key);
-    showDetails(getUnitByKey(key));
+    selectedKey = normalizeUnitKey(key);
+    renderTable(selectedKey);
+    showDetails(getUnitByKey(selectedKey));
     refreshVisualState();
   }
 
@@ -460,7 +467,6 @@ export function Viewer() {
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
-    // closer and a bit lower thumbnail/start view
     camera.position.set(
       center.x + maxDim * 0.72,
       center.y + maxDim * 0.20,
@@ -539,7 +545,6 @@ export function Viewer() {
     });
   }
 
-  // ---------------- POINTER ----------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
@@ -553,7 +558,7 @@ export function Viewer() {
     let cur = obj;
     while (cur && cur !== root) {
       const key = unitKeyFromName(cur.name);
-      if (key) return key;
+      if (key && /^TOP\d+$/.test(key)) return key;
       cur = cur.parent;
     }
     return null;
@@ -588,14 +593,14 @@ export function Viewer() {
     }
 
     if (hoveredKey !== key) {
-      hoveredKey = key;
+      hoveredKey = normalizeUnitKey(key);
       refreshVisualState();
 
-      const unit = getUnitByKey(key);
+      const unit = getUnitByKey(hoveredKey);
       if (panelNote) {
         panelNote.textContent = unit
           ? `${unit.number} · ${STATUS_LABEL[unit.status]}`
-          : `Hover: ${key}`;
+          : `Hover: ${hoveredKey}`;
       }
     }
   }
@@ -612,7 +617,6 @@ export function Viewer() {
     }
   });
 
-  // ---------------- CLICK ----------------
   const clickState = {
     downX: 0,
     downY: 0,
@@ -654,7 +658,6 @@ export function Viewer() {
     selectUnit(key);
   });
 
-  // ---------------- INIT ----------------
   async function init() {
     renderTable(null);
     showDetails(null);
