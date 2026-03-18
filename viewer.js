@@ -56,10 +56,14 @@ export function Viewer() {
   function normalizeUnitKey(value) {
     const raw = String(value || "").trim().toUpperCase();
     if (!raw) return "";
+
     const compact = raw.replace(/\s+/g, "");
+
     if (/^\d+$/.test(compact)) return `TOP${compact}`;
+
     const match = compact.match(/(?:TOP|TOG)?(\d+)/);
     if (match) return `TOP${match[1]}`;
+
     return compact;
   }
 
@@ -76,7 +80,10 @@ export function Viewer() {
 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 5000);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -155,6 +162,7 @@ export function Viewer() {
 
       const parsed = rows.map((row) => {
         const obj = {};
+
         cols.forEach((colName, i) => {
           const cell = row.c?.[i];
           obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
@@ -190,7 +198,8 @@ export function Viewer() {
   }
 
   function resolvePlanUrl(planValue) {
-    return planValue || "";
+    if (!planValue) return "";
+    return planValue;
   }
 
   const gltfLoader = new GLTFLoader();
@@ -204,6 +213,7 @@ export function Viewer() {
 
   let hoveredKey = null;
   let selectedKey = null;
+
   const overlayClones = new Map();
 
   function statusBadge(status) {
@@ -252,14 +262,20 @@ export function Viewer() {
   }
 
   function clearOverlayGroup(key) {
-    const items = overlayClones.get(normalizeUnitKey(key));
+    const normalized = normalizeUnitKey(key);
+    const items = overlayClones.get(normalized);
     if (!items) return;
-    items.forEach((mesh) => mesh.removeFromParent());
-    overlayClones.delete(normalizeUnitKey(key));
+
+    items.forEach((mesh) => {
+      if (mesh.parent) mesh.parent.remove(mesh);
+      if (mesh.material) mesh.material.dispose();
+    });
+
+    overlayClones.delete(normalized);
   }
 
   function clearAllOverlays() {
-    for (const key of overlayClones.keys()) {
+    for (const key of Array.from(overlayClones.keys())) {
       clearOverlayGroup(key);
     }
   }
@@ -271,11 +287,16 @@ export function Viewer() {
 
     clearOverlayGroup(normalized);
 
+    const originals = [];
+    group.traverse((child) => {
+      if (child.isMesh && child.geometry && !child.userData.__isOverlay) {
+        originals.push(child);
+      }
+    });
+
     const clones = [];
 
-    group.traverse((child) => {
-      if (!child.isMesh || !child.geometry) return;
-
+    originals.forEach((child) => {
       const overlayMaterial = new THREE.MeshBasicMaterial({
         color: tintColor,
         transparent: true,
@@ -287,11 +308,13 @@ export function Viewer() {
       });
 
       const overlay = new THREE.Mesh(child.geometry, overlayMaterial);
-      overlay.position.copy(child.position);
-      overlay.rotation.copy(child.rotation);
-      overlay.scale.copy(child.scale);
+      overlay.userData.__isOverlay = true;
       overlay.renderOrder = 999;
-      overlay.matrixAutoUpdate = true;
+
+      // overlay as child, but keep local transform neutral
+      overlay.position.set(0, 0, 0);
+      overlay.rotation.set(0, 0, 0);
+      overlay.scale.set(1, 1, 1);
 
       child.add(overlay);
       clones.push(overlay);
