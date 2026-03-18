@@ -34,66 +34,11 @@ export function Viewer() {
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
 
   let units = [
-    {
-      key: "TOP1",
-      number: "Top1",
-      floor: "EG",
-      size: "68 m²",
-      price: "€ 289.000",
-      status: "free",
-      rooms: "2",
-      orientation: "Süd-West",
-      outdoor: "Terrasse 14 m²",
-      plan: ""
-    },
-    {
-      key: "TOP2",
-      number: "Top2",
-      floor: "1. OG",
-      size: "74 m²",
-      price: "€ 315.000",
-      status: "reserved",
-      rooms: "3",
-      orientation: "Süd",
-      outdoor: "Balkon 8 m²",
-      plan: ""
-    },
-    {
-      key: "TOP3",
-      number: "Top3",
-      floor: "2. OG",
-      size: "81 m²",
-      price: "€ 349.000",
-      status: "free",
-      rooms: "3",
-      orientation: "Süd-Ost",
-      outdoor: "Loggia 7 m²",
-      plan: ""
-    },
-    {
-      key: "TOP4",
-      number: "Top4",
-      floor: "3. OG",
-      size: "90 m²",
-      price: "€ 389.000",
-      status: "free",
-      rooms: "4",
-      orientation: "West",
-      outdoor: "Balkon 11 m²",
-      plan: ""
-    },
-    {
-      key: "TOP5",
-      number: "Top5",
-      floor: "4. OG",
-      size: "112 m²",
-      price: "Verkauft",
-      status: "sold",
-      rooms: "4",
-      orientation: "Süd-West",
-      outdoor: "Dachterrasse 28 m²",
-      plan: ""
-    }
+    { key: "TOP1", number: "Top1", floor: "EG", size: "68 m²", price: "€ 289.000", status: "free", rooms: "2", orientation: "Süd-West", outdoor: "Terrasse 14 m²", plan: "" },
+    { key: "TOP2", number: "Top2", floor: "1. OG", size: "74 m²", price: "€ 315.000", status: "reserved", rooms: "3", orientation: "Süd", outdoor: "Balkon 8 m²", plan: "" },
+    { key: "TOP3", number: "Top3", floor: "2. OG", size: "81 m²", price: "€ 349.000", status: "free", rooms: "3", orientation: "Süd-Ost", outdoor: "Loggia 7 m²", plan: "" },
+    { key: "TOP4", number: "Top4", floor: "3. OG", size: "90 m²", price: "€ 389.000", status: "free", rooms: "4", orientation: "West", outdoor: "Balkon 11 m²", plan: "" },
+    { key: "TOP5", number: "Top5", floor: "4. OG", size: "112 m²", price: "Verkauft", status: "sold", rooms: "4", orientation: "Süd-West", outdoor: "Dachterrasse 28 m²", plan: "" }
   ];
 
   const STATUS_COLOR = {
@@ -111,14 +56,10 @@ export function Viewer() {
   function normalizeUnitKey(value) {
     const raw = String(value || "").trim().toUpperCase();
     if (!raw) return "";
-
     const compact = raw.replace(/\s+/g, "");
-
     if (/^\d+$/.test(compact)) return `TOP${compact}`;
-
     const match = compact.match(/(?:TOP|TOG)?(\d+)/);
     if (match) return `TOP${match[1]}`;
-
     return compact;
   }
 
@@ -135,10 +76,7 @@ export function Viewer() {
 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 5000);
 
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: false
-  });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -217,7 +155,6 @@ export function Viewer() {
 
       const parsed = rows.map((row) => {
         const obj = {};
-
         cols.forEach((colName, i) => {
           const cell = row.c?.[i];
           obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
@@ -253,8 +190,7 @@ export function Viewer() {
   }
 
   function resolvePlanUrl(planValue) {
-    if (!planValue) return "";
-    return planValue;
+    return planValue || "";
   }
 
   const gltfLoader = new GLTFLoader();
@@ -268,7 +204,7 @@ export function Viewer() {
 
   let hoveredKey = null;
   let selectedKey = null;
-  const originalMaterials = new WeakMap();
+  const overlayClones = new Map();
 
   function statusBadge(status) {
     return `<span class="badge ${status}">${STATUS_LABEL[status] || status}</span>`;
@@ -315,82 +251,68 @@ export function Viewer() {
     material.needsUpdate = true;
   }
 
-  function cacheOriginalMaterial(mesh) {
-    if (!originalMaterials.has(mesh)) {
-      originalMaterials.set(mesh, mesh.material);
+  function clearOverlayGroup(key) {
+    const items = overlayClones.get(normalizeUnitKey(key));
+    if (!items) return;
+    items.forEach((mesh) => mesh.removeFromParent());
+    overlayClones.delete(normalizeUnitKey(key));
+  }
+
+  function clearAllOverlays() {
+    for (const key of overlayClones.keys()) {
+      clearOverlayGroup(key);
     }
   }
 
-  function setMeshTint(mesh, tintColor, strength = 0.42) {
-    cacheOriginalMaterial(mesh);
-
-    const applyToMaterial = (material) => {
-      const mat = material.clone();
-
-      if (mat.color) {
-        const baseColor = material.color
-          ? material.color.clone()
-          : new THREE.Color(0xffffff);
-
-        mat.color.copy(baseColor.lerp(tintColor, strength));
-      }
-
-      if ("emissive" in mat && mat.emissive) {
-        mat.emissive.copy(tintColor);
-        mat.emissiveIntensity = 0.18;
-      }
-
-      mat.needsUpdate = true;
-      return mat;
-    };
-
-    if (Array.isArray(mesh.material)) {
-      mesh.material = mesh.material.map(applyToMaterial);
-    } else {
-      mesh.material = applyToMaterial(mesh.material);
-    }
-  }
-
-  function restoreMeshMaterial(mesh) {
-    const original = originalMaterials.get(mesh);
-    if (original) mesh.material = original;
-  }
-
-  function tintGroup(key, tintColor, strength = 0.42) {
-    const group = unitGroups.get(normalizeUnitKey(key));
+  function addOverlayGroup(key, tintColor, opacity = 0.45) {
+    const normalized = normalizeUnitKey(key);
+    const group = unitGroups.get(normalized);
     if (!group) return;
 
-    group.traverse((child) => {
-      if (!child.isMesh || !child.material) return;
-      setMeshTint(child, tintColor, strength);
-    });
-  }
+    clearOverlayGroup(normalized);
 
-  function restoreGroup(key) {
-    const group = unitGroups.get(normalizeUnitKey(key));
-    if (!group) return;
+    const clones = [];
 
     group.traverse((child) => {
-      if (!child.isMesh) return;
-      restoreMeshMaterial(child);
+      if (!child.isMesh || !child.geometry) return;
+
+      const overlayMaterial = new THREE.MeshBasicMaterial({
+        color: tintColor,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2
+      });
+
+      const overlay = new THREE.Mesh(child.geometry, overlayMaterial);
+      overlay.position.copy(child.position);
+      overlay.rotation.copy(child.rotation);
+      overlay.scale.copy(child.scale);
+      overlay.renderOrder = 999;
+      overlay.matrixAutoUpdate = true;
+
+      child.add(overlay);
+      clones.push(overlay);
     });
+
+    overlayClones.set(normalized, clones);
   }
 
   function refreshVisualState() {
-    for (const key of unitGroups.keys()) {
-      restoreGroup(key);
-    }
+    clearAllOverlays();
 
     if (selectedKey) {
       const unit = getUnitByKey(selectedKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
-      tintGroup(selectedKey, color, 0.26);
+      addOverlayGroup(selectedKey, color, 0.28);
     }
 
     if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
-      tintGroup(hoveredKey, color, 0.48);
+      addOverlayGroup(hoveredKey, color, 0.48);
     }
   }
 
@@ -691,17 +613,3 @@ export function Viewer() {
 
   return { init };
 }
-
-also ich hab immer noch kein hover. macht es sinn irgendwie die wohnungen das mesh im sketchup mit schwachem grau zu markieren und das dann hier farbig zu machen? highligt ihn אולי irgendwie? 
-hier sind die loggs wenn ich hovere:
-Unit groups found: ['TOP2', 'TOP1', 'TOP3', 'TOP4', 'TOP5']
-viewer.js:379 hoveredKey: TOP2 unit: {key: 'TOP2', number: 'Tog 2', floor: '', size: '39 m²', price: '270.000€', status: 'free', …}
-viewer.js:379 hoveredKey: TOP4 unit: {key: 'TOP4', number: '4', floor: '1', size: '52 m²', price: '315.000€', status: 'sold', …}
-viewer.js:379 hoveredKey: TOP3 unit: {key: 'TOP3', number: 'Top 3', floor: '1', size: '65 m²', price: '460.000€', status: 'free', …}
-viewer.js:379 hoveredKey: TOP1 unit: {key: 'TOP1', number: 'Top 1', floor: '', size: '38 m²', price: '270.000€', status: 'reserved', …}
-viewer.js:379 hoveredKey: TOP3 unit: {key: 'TOP3', number: 'Top 3', floor: '1', size: '65 m²', price: '460.000€', status: 'free', …}
-viewer.js:379 hoveredKey: TOP5 unit: {key: 'TOP5', number: '5', floor: '2', size: '65 m²', price: '460.000€', status: 'free', …}
-viewer.js:379 hoveredKey: TOP4 unit: {key: 'TOP4', number: '4', floor: '1', size: '52 m²', price: '315.000€', status: 'sold', …}
-viewer.js:379 hoveredKey: TOP2 unit: {key: 'TOP2', number: 'Tog 2', floor: '', size: '39 m²', price: '270.000€', status: 'free', …}
-viewer.js:379 hoveredKey: TOP3 unit: {key: 'TOP3', number: 'Top 3', floor: '1', size: '65 m²', price: '460.000€', status: 'free', …}
-viewer.js:379 hoveredKey: TOP2 unit: {key: 'TOP2', number: 'Tog 2', floor: '', size: '39 m²', price: '270.000€', status: 'free', …}
