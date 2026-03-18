@@ -25,6 +25,7 @@ export function Viewer() {
 
   if (!wrapper) throw new Error("Missing #viewerCanvasWrapper");
 
+  // ---------------- CONFIG ----------------
   const BUILDING_URL =
     "https://dhhvajuaoebokmqswxad.supabase.co/storage/v1/object/public/models/Testche.glb";
 
@@ -33,6 +34,7 @@ export function Viewer() {
   const SHEET_URL =
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
 
+  // Fallback
   let units = [
     { key: "TOP1", number: "Top1", floor: "EG", size: "68 m²", price: "€ 289.000", status: "free", rooms: "2", orientation: "Süd-West", outdoor: "Terrasse 14 m²", plan: "" },
     { key: "TOP2", number: "Top2", floor: "1. OG", size: "74 m²", price: "€ 315.000", status: "reserved", rooms: "3", orientation: "Süd", outdoor: "Balkon 8 m²", plan: "" },
@@ -53,18 +55,24 @@ export function Viewer() {
     sold: "Verkauft"
   };
 
+  // ---------------- HELPERS ----------------
   function normalizeUnitKey(value) {
     const raw = String(value || "").trim().toUpperCase();
     if (!raw) return "";
 
-    const compact = raw.replace(/\s+/g, "");
-
-    if (/^\d+$/.test(compact)) return `TOP${compact}`;
-
-    const match = compact.match(/(?:TOP|TOG)?(\d+)/);
+    const match = raw.match(/^TOP(\d+)$/);
     if (match) return `TOP${match[1]}`;
 
-    return compact;
+    // optional fallback if someone typed only a number in Sheets
+    if (/^\d+$/.test(raw)) return `TOP${raw}`;
+
+    return "";
+  }
+
+  function unitKeyFromName(nameRaw) {
+    const raw = String(nameRaw || "").trim().toUpperCase();
+    const match = raw.match(/^TOP(\d+)$/);
+    return match ? `TOP${match[1]}` : "";
   }
 
   function normalizeStatus(value) {
@@ -75,6 +83,20 @@ export function Viewer() {
     return s;
   }
 
+  function statusBadge(status) {
+    return `<span class="badge ${status}">${STATUS_LABEL[status] || status}</span>`;
+  }
+
+  function getUnitByKey(key) {
+    const normalized = normalizeUnitKey(key);
+    return units.find((u) => normalizeUnitKey(u.key) === normalized) || null;
+  }
+
+  function resolvePlanUrl(planValue) {
+    return String(planValue || "").trim();
+  }
+
+  // ---------------- THREE SETUP ----------------
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
 
@@ -140,6 +162,7 @@ export function Viewer() {
   window.addEventListener("resize", resize);
   resize();
 
+  // ---------------- GOOGLE SHEETS ----------------
   async function fetchSheetData() {
     if (!SHEET_ID) return units;
 
@@ -157,33 +180,37 @@ export function Viewer() {
       const jsonText = text.slice(start, end + 1);
       const data = JSON.parse(jsonText);
 
-      const cols = (data.table?.cols || []).map(c => (c.label || c.id || "").trim().toLowerCase());
+      const cols = (data.table?.cols || []).map((c) =>
+        String(c.label || c.id || "").trim().toLowerCase()
+      );
       const rows = data.table?.rows || [];
 
-      const parsed = rows.map((row) => {
-        const obj = {};
+      const parsed = rows
+        .map((row) => {
+          const obj = {};
 
-        cols.forEach((colName, i) => {
-          const cell = row.c?.[i];
-          obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
-        });
+          cols.forEach((colName, i) => {
+            const cell = row.c?.[i];
+            obj[colName] = cell ? (cell.f ?? cell.v ?? "") : "";
+          });
 
-        const rawNumber = String(obj.number || "").trim();
-        const normalizedKey = normalizeUnitKey(rawNumber);
+          const rawNumber = String(obj.number || "").trim();
+          const normalizedKey = normalizeUnitKey(rawNumber);
 
-        return {
-          key: normalizedKey,
-          number: rawNumber || normalizedKey,
-          floor: String(obj.floor || "").trim(),
-          size: String(obj.size || "").trim(),
-          price: String(obj.price || "").trim(),
-          status: normalizeStatus(obj.status),
-          rooms: String(obj.rooms || "").trim(),
-          orientation: String(obj.orientation || "").trim(),
-          outdoor: String(obj.outdoor || "").trim(),
-          plan: String(obj.plan || "").trim()
-        };
-      }).filter(u => u.key);
+          return {
+            key: normalizedKey,
+            number: rawNumber || normalizedKey,
+            floor: String(obj.floor || "").trim(),
+            size: String(obj.size || "").trim(),
+            price: String(obj.price || "").trim(),
+            status: normalizeStatus(obj.status),
+            rooms: String(obj.rooms || "").trim(),
+            orientation: String(obj.orientation || "").trim(),
+            outdoor: String(obj.outdoor || "").trim(),
+            plan: String(obj.plan || "").trim()
+          };
+        })
+        .filter((u) => u.key && /^TOP[1-5]$/.test(u.key));
 
       if (parsed.length) {
         units = parsed;
@@ -197,11 +224,7 @@ export function Viewer() {
     }
   }
 
-  function resolvePlanUrl(planValue) {
-    if (!planValue) return "";
-    return planValue;
-  }
-
+  // ---------------- MODEL ----------------
   const gltfLoader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/");
@@ -214,27 +237,19 @@ export function Viewer() {
   let hoveredKey = null;
   let selectedKey = null;
 
+  // overlay meshes for highlight
   const overlayClones = new Map();
-
-  function statusBadge(status) {
-    return `<span class="badge ${status}">${STATUS_LABEL[status] || status}</span>`;
-  }
-
-  function getUnitByKey(key) {
-    const normalized = normalizeUnitKey(key);
-    return units.find(u => normalizeUnitKey(u.key) === normalized) || null;
-  }
-
-  function unitKeyFromName(nameRaw) {
-    return normalizeUnitKey(nameRaw);
-  }
 
   function collectUnitGroups() {
     unitGroups.clear();
 
+    const allowedKeys = new Set(units.map((u) => normalizeUnitKey(u.key)));
+
     root.traverse((obj) => {
       const key = unitKeyFromName(obj.name);
-      if (key && /^TOP\d+$/.test(key) && !unitGroups.has(key)) {
+      if (!key) return;
+      if (!allowedKeys.has(key)) return;
+      if (!unitGroups.has(key)) {
         unitGroups.set(key, obj);
       }
     });
@@ -311,7 +326,7 @@ export function Viewer() {
       overlay.userData.__isOverlay = true;
       overlay.renderOrder = 999;
 
-      // overlay as child, but keep local transform neutral
+      // attach with neutral local transform so it sits exactly on the source mesh
       overlay.position.set(0, 0, 0);
       overlay.rotation.set(0, 0, 0);
       overlay.scale.set(1, 1, 1);
@@ -335,7 +350,7 @@ export function Viewer() {
     if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
-      addOverlayGroup(hoveredKey, color, 0.48);
+      addOverlayGroup(hoveredKey, color, 0.50);
     }
   }
 
@@ -493,6 +508,7 @@ export function Viewer() {
     });
   }
 
+  // ---------------- POINTER ----------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
@@ -506,7 +522,7 @@ export function Viewer() {
     let cur = obj;
     while (cur && cur !== root) {
       const key = unitKeyFromName(cur.name);
-      if (key && /^TOP\d+$/.test(key)) return key;
+      if (key) return key;
       cur = cur.parent;
     }
     return null;
@@ -569,6 +585,7 @@ export function Viewer() {
     }
   });
 
+  // ---------------- CLICK ----------------
   const clickState = {
     downX: 0,
     downY: 0,
@@ -610,6 +627,7 @@ export function Viewer() {
     selectUnit(key);
   });
 
+  // ---------------- INIT ----------------
   async function init() {
     renderTable(null);
     showDetails(null);
