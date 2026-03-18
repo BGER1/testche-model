@@ -321,20 +321,23 @@ export function Viewer() {
     }
   }
 
-  function setMeshTint(mesh, tintColor, strength = 0.32) {
+  function setMeshTint(mesh, tintColor, strength = 0.42) {
     cacheOriginalMaterial(mesh);
 
     const applyToMaterial = (material) => {
       const mat = material.clone();
 
-      if ("color" in mat && mat.color) {
-        const base = mat.color.clone();
-        mat.color.copy(base.lerp(tintColor, strength));
+      if (mat.color) {
+        const baseColor = material.color
+          ? material.color.clone()
+          : new THREE.Color(0xffffff);
+
+        mat.color.copy(baseColor.lerp(tintColor, strength));
       }
 
       if ("emissive" in mat && mat.emissive) {
-        mat.emissive = tintColor.clone();
-        mat.emissiveIntensity = 0.12;
+        mat.emissive.copy(tintColor);
+        mat.emissiveIntensity = 0.18;
       }
 
       mat.needsUpdate = true;
@@ -353,7 +356,7 @@ export function Viewer() {
     if (original) mesh.material = original;
   }
 
-  function tintGroup(key, tintColor, strength = 0.32) {
+  function tintGroup(key, tintColor, strength = 0.42) {
     const group = unitGroups.get(normalizeUnitKey(key));
     if (!group) return;
 
@@ -380,14 +383,14 @@ export function Viewer() {
 
     if (selectedKey) {
       const unit = getUnitByKey(selectedKey);
-      const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
-      tintGroup(selectedKey, color, 0.22);
+      const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
+      tintGroup(selectedKey, color, 0.26);
     }
 
     if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
-      const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
-      tintGroup(hoveredKey, color, 0.38);
+      const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
+      tintGroup(hoveredKey, color, 0.48);
     }
   }
 
@@ -468,12 +471,12 @@ export function Viewer() {
     const maxDim = Math.max(size.x, size.y, size.z);
 
     camera.position.set(
-      center.x + maxDim * 0.72,
+      center.x + maxDim * 0.52,
       center.y + maxDim * 0.20,
       center.z + maxDim * 0.66
     );
 
-    controls.target.set(center.x, center.y + size.y * 0.16, center.z);
+    controls.target.set(center.x - maxDim * 0.03, center.y + size.y * 0.16, center.z);
     controls.update();
 
     controls.minDistance = Math.max(4, maxDim * 0.30);
@@ -592,8 +595,10 @@ export function Viewer() {
       return;
     }
 
-    if (hoveredKey !== key) {
-      hoveredKey = normalizeUnitKey(key);
+    const normalizedKey = normalizeUnitKey(key);
+
+    if (hoveredKey !== normalizedKey) {
+      hoveredKey = normalizedKey;
       refreshVisualState();
 
       const unit = getUnitByKey(hoveredKey);
@@ -602,6 +607,8 @@ export function Viewer() {
           ? `${unit.number} · ${STATUS_LABEL[unit.status]}`
           : `Hover: ${hoveredKey}`;
       }
+
+      console.log("hoveredKey:", hoveredKey, "unit:", unit);
     }
   }
 
@@ -684,3 +691,17 @@ export function Viewer() {
 
   return { init };
 }
+
+also ich hab immer noch kein hover. macht es sinn irgendwie die wohnungen das mesh im sketchup mit schwachem grau zu markieren und das dann hier farbig zu machen? highligt ihn אולי irgendwie? 
+hier sind die loggs wenn ich hovere:
+Unit groups found: ['TOP2', 'TOP1', 'TOP3', 'TOP4', 'TOP5']
+viewer.js:379 hoveredKey: TOP2 unit: {key: 'TOP2', number: 'Tog 2', floor: '', size: '39 m²', price: '270.000€', status: 'free', …}
+viewer.js:379 hoveredKey: TOP4 unit: {key: 'TOP4', number: '4', floor: '1', size: '52 m²', price: '315.000€', status: 'sold', …}
+viewer.js:379 hoveredKey: TOP3 unit: {key: 'TOP3', number: 'Top 3', floor: '1', size: '65 m²', price: '460.000€', status: 'free', …}
+viewer.js:379 hoveredKey: TOP1 unit: {key: 'TOP1', number: 'Top 1', floor: '', size: '38 m²', price: '270.000€', status: 'reserved', …}
+viewer.js:379 hoveredKey: TOP3 unit: {key: 'TOP3', number: 'Top 3', floor: '1', size: '65 m²', price: '460.000€', status: 'free', …}
+viewer.js:379 hoveredKey: TOP5 unit: {key: 'TOP5', number: '5', floor: '2', size: '65 m²', price: '460.000€', status: 'free', …}
+viewer.js:379 hoveredKey: TOP4 unit: {key: 'TOP4', number: '4', floor: '1', size: '52 m²', price: '315.000€', status: 'sold', …}
+viewer.js:379 hoveredKey: TOP2 unit: {key: 'TOP2', number: 'Tog 2', floor: '', size: '39 m²', price: '270.000€', status: 'free', …}
+viewer.js:379 hoveredKey: TOP3 unit: {key: 'TOP3', number: 'Top 3', floor: '1', size: '65 m²', price: '460.000€', status: 'free', …}
+viewer.js:379 hoveredKey: TOP2 unit: {key: 'TOP2', number: 'Tog 2', floor: '', size: '39 m²', price: '270.000€', status: 'free', …}
