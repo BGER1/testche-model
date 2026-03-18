@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Wohnungsfinder</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
   <link rel="stylesheet" href="./viewer.css" />
 
@@ -40,7 +40,7 @@
           <thead>
             <tr>
               <th>Nummer</th>
-              <th>Floor</th>
+              <th>Etage</th>
               <th>Größe</th>
               <th>Preis</th>
               <th>Status</th>
@@ -76,7 +76,7 @@
               <div class="detail-value" id="detailsRooms">—</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Floor</div>
+              <div class="detail-label">Etage</div>
               <div class="detail-value" id="detailsFloor">—</div>
             </div>
             <div class="detail-item">
@@ -89,11 +89,6 @@
             </div>
           </div>
 
-          <div class="detail-description-wrap">
-            <div class="detail-label">Beschreibung</div>
-            <div class="detail-description" id="detailsDescription">—</div>
-          </div>
-
           <div class="plan-wrap">
             <div class="detail-label">Grundriss</div>
             <img id="detailsPlan" class="details-plan is-hidden" alt="Grundriss" />
@@ -103,7 +98,7 @@
       </div>
 
       <div class="panel-note" id="panelNote">
-        Hover zeigt den Status farblich. Klick öffnet rechts die Wohnungsdetails.
+        Hover zeigt den Wohnungsstatus farblich. Klick öffnet rechts die Wohnungsdetails.
       </div>
     </aside>
   </div>
