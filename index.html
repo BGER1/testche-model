@@ -34,13 +34,13 @@
       </div>
 
       <div class="panel-section">
-        <div class="section-title">Einheiten</div>
+        <div class="section-title">Wohnungen</div>
 
         <table class="info-table">
           <thead>
             <tr>
-              <th>Wohnung</th>
-              <th>Etage</th>
+              <th>Nummer</th>
+              <th>Floor</th>
               <th>Größe</th>
               <th>Preis</th>
               <th>Status</th>
@@ -76,8 +76,8 @@
               <div class="detail-value" id="detailsRooms">—</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Verfügbarkeit</div>
-              <div class="detail-value" id="detailsAvailability">—</div>
+              <div class="detail-label">Floor</div>
+              <div class="detail-value" id="detailsFloor">—</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Ausrichtung</div>
@@ -93,11 +93,17 @@
             <div class="detail-label">Beschreibung</div>
             <div class="detail-description" id="detailsDescription">—</div>
           </div>
+
+          <div class="plan-wrap">
+            <div class="detail-label">Grundriss</div>
+            <img id="detailsPlan" class="details-plan is-hidden" alt="Grundriss" />
+            <div id="detailsPlanEmpty" class="plan-empty">Kein Grundriss hinterlegt.</div>
+          </div>
         </div>
       </div>
 
       <div class="panel-note" id="panelNote">
-        Hover zeigt den Wohnungsstatus farblich. Klick öffnet die Details rechts.
+        Hover zeigt den Status farblich. Klick öffnet rechts die Wohnungsdetails.
       </div>
     </aside>
   </div>
