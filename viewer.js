@@ -35,8 +35,7 @@ export function Viewer() {
   const SHEET_URL =
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
 
-  // Optional: wenn du Grundrisse auch in Supabase hochlädst,
-  // dann trag in Google Sheets in der Spalte "plan" einfach komplette URLs ein.
+  // Fallback data if Sheets does not load
   let units = [
     {
       key: "TOP1",
@@ -63,13 +62,52 @@ export function Viewer() {
       outdoor: "Balkon 8 m²",
       description: "Kompakte Familienwohnung mit Balkon.",
       plan: ""
+    },
+    {
+      key: "TOP3",
+      number: "Top3",
+      floor: "2. OG",
+      size: "81 m²",
+      price: "€ 349.000",
+      status: "free",
+      rooms: "3",
+      orientation: "Süd-Ost",
+      outdoor: "Loggia 7 m²",
+      description: "Moderne Wohnung mit offener Küche.",
+      plan: ""
+    },
+    {
+      key: "TOP4",
+      number: "Top4",
+      floor: "3. OG",
+      size: "90 m²",
+      price: "€ 389.000",
+      status: "free",
+      rooms: "4",
+      orientation: "West",
+      outdoor: "Balkon 11 m²",
+      description: "Großzügige Einheit mit guter Aussicht.",
+      plan: ""
+    },
+    {
+      key: "TOP5",
+      number: "Top5",
+      floor: "4. OG",
+      size: "112 m²",
+      price: "Verkauft",
+      status: "sold",
+      rooms: "4",
+      orientation: "Süd-West",
+      outdoor: "Dachterrasse 28 m²",
+      description: "Penthouse mit großzügiger Terrasse.",
+      plan: ""
     }
   ];
 
   const STATUS_COLOR = {
-    free: new THREE.Color(0x72d98b),
-    reserved: new THREE.Color(0xf4cf58),
-    sold: new THREE.Color(0xf08b8b)
+    free: new THREE.Color(0x2faa60),
+    reserved: new THREE.Color(0xd4a017),
+    sold: new THREE.Color(0xc84b4b)
   };
 
   const STATUS_LABEL = {
@@ -265,7 +303,10 @@ export function Viewer() {
     }
 
     if ("metalness" in material) material.metalness = 0.0;
-    if ("roughness" in material) material.roughness = Math.min(1, Math.max(0.72, material.roughness ?? 0.85));
+    if ("roughness" in material) {
+      material.roughness = Math.min(1, Math.max(0.72, material.roughness ?? 0.85));
+    }
+
     material.needsUpdate = true;
   }
 
@@ -275,19 +316,19 @@ export function Viewer() {
     }
   }
 
-  function setMeshTint(mesh, tintColor, strength = 0.18) {
+  function setMeshTint(mesh, tintColor, strength = 0.22) {
     cacheOriginalMaterial(mesh);
 
     const applyToMaterial = (material) => {
       const mat = material.clone();
 
+      if ("color" in mat && mat.color) {
+        mat.color = mat.color.clone().lerp(tintColor, strength);
+      }
+
       if ("emissive" in mat && mat.emissive) {
-        mat.emissive = mat.emissive.clone();
-        mat.emissive.copy(tintColor);
-        mat.emissiveIntensity = strength;
-      } else if ("color" in mat && mat.color) {
-        const mixed = mat.color.clone().lerp(tintColor, strength * 0.30);
-        mat.color.copy(mixed);
+        mat.emissive = tintColor.clone();
+        mat.emissiveIntensity = 0.08;
       }
 
       mat.needsUpdate = true;
@@ -306,7 +347,7 @@ export function Viewer() {
     if (original) mesh.material = original;
   }
 
-  function tintGroup(key, tintColor, strength = 0.18) {
+  function tintGroup(key, tintColor, strength = 0.22) {
     const group = unitGroups.get(key);
     if (!group) return;
 
@@ -334,13 +375,13 @@ export function Viewer() {
     if (selectedKey) {
       const unit = getUnitByKey(selectedKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
-      tintGroup(selectedKey, color, 0.14);
+      tintGroup(selectedKey, color, 0.18);
     }
 
     if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x9ecbff);
-      tintGroup(hoveredKey, color, 0.24);
+      tintGroup(hoveredKey, color, 0.32);
     }
   }
 
@@ -419,7 +460,7 @@ export function Viewer() {
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
-    // Näher und etwas niedriger
+    // closer and a bit lower thumbnail/start view
     camera.position.set(
       center.x + maxDim * 0.72,
       center.y + maxDim * 0.20,
@@ -529,6 +570,7 @@ export function Viewer() {
     if (!hits.length) {
       hoveredKey = null;
       refreshVisualState();
+
       if (panelNote && selectedKey) {
         panelNote.textContent = `${getUnitByKey(selectedKey)?.number || ""} ausgewählt.`;
       } else if (panelNote) {
