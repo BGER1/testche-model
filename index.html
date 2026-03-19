@@ -36,13 +36,13 @@
         <div class="panel-title">Wohnungsfinder</div>
       </div>
 
-      <div class="panel-section accordion is-open" id="overviewSection">
-        <button class="accordion-toggle" id="overviewToggle" type="button">
+      <div class="panel-section section-collapsible is-open" id="overviewSection">
+        <div class="section-header" id="overviewHeader">
           <span>Wohnungsübersicht</span>
-          <span class="accordion-icon">▾</span>
-        </button>
+          <span class="section-arrow">▾</span>
+        </div>
 
-        <div class="accordion-content" id="overviewContent">
+        <div class="section-body" id="overviewBody">
           <table class="info-table">
             <thead>
               <tr>
@@ -58,18 +58,16 @@
         </div>
       </div>
 
-      <div class="panel-section accordion" id="detailsSection">
-        <button class="accordion-toggle" id="detailsToggle" type="button">
+      <div class="panel-section section-collapsible" id="detailsSection">
+        <div class="section-header" id="detailsHeader">
           <span>Details</span>
-          <span class="accordion-icon">▾</span>
-        </button>
+          <span class="section-arrow">▾</span>
+        </div>
 
-        <div class="accordion-content" id="detailsContent">
+        <div class="section-body" id="detailsBody">
           <div id="detailsCard" class="details-card is-hidden">
             <div class="details-top">
-              <div>
-                <div class="details-title" id="detailsTitle">Wohnung</div>
-              </div>
+              <div class="details-title" id="detailsTitle">Wohnung</div>
               <div id="detailsBadge" class="badge">Status</div>
             </div>
 
