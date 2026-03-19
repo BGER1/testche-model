@@ -8,12 +8,15 @@ export function Viewer() {
   const loaderEl = document.getElementById("loader");
   const loaderInfo = document.getElementById("loaderInfo");
   const infoRows = document.getElementById("infoRows");
-  const panelNote = document.getElementById("panelNote");
   const availabilityToggle = document.getElementById("availabilityToggle");
+
+  const overviewSection = document.getElementById("overviewSection");
+  const detailsSection = document.getElementById("detailsSection");
+  const overviewToggle = document.getElementById("overviewToggle");
+  const detailsToggle = document.getElementById("detailsToggle");
 
   const detailsCard = document.getElementById("detailsCard");
   const detailsTitle = document.getElementById("detailsTitle");
-  const detailsSubtitle = document.getElementById("detailsSubtitle");
   const detailsBadge = document.getElementById("detailsBadge");
   const detailsSize = document.getElementById("detailsSize");
   const detailsPrice = document.getElementById("detailsPrice");
@@ -102,6 +105,19 @@ export function Viewer() {
     return String(planValue || "").trim();
   }
 
+  function setAccordionState(sectionEl, isOpen) {
+    if (!sectionEl) return;
+    sectionEl.classList.toggle("is-open", isOpen);
+  }
+
+  overviewToggle?.addEventListener("click", () => {
+    setAccordionState(overviewSection, !overviewSection.classList.contains("is-open"));
+  });
+
+  detailsToggle?.addEventListener("click", () => {
+    setAccordionState(detailsSection, !detailsSection.classList.contains("is-open"));
+  });
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
 
@@ -129,9 +145,8 @@ export function Viewer() {
   controls.minPolarAngle = 0.22;
   controls.screenSpacePanning = false;
   controls.autoRotate = false;
-  controls.autoRotateSpeed = 0.8; // schneller + andere Richtung
+  controls.autoRotateSpeed = 0.8;
 
-  // Licht wieder einfacher wie davor
   const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   scene.add(ambient);
 
@@ -362,7 +377,6 @@ export function Viewer() {
   function refreshVisualState() {
     clearAllOverlays();
 
-    // Filter-Button: freie Wohnungen dauerhaft grün zeigen
     if (showOnlyAvailable) {
       units.forEach((u) => {
         if (u.status === "free") {
@@ -371,13 +385,13 @@ export function Viewer() {
       });
     }
 
-    if (selectedKey) {
+    if (selectedKey && (!showOnlyAvailable || getUnitByKey(selectedKey)?.status === "free")) {
       const unit = getUnitByKey(selectedKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
       addOverlayGroup(selectedKey, color, 0.28);
     }
 
-    if (hoveredKey) {
+    if (hoveredKey && (!showOnlyAvailable || getUnitByKey(hoveredKey)?.status === "free")) {
       const unit = getUnitByKey(hoveredKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
       addOverlayGroup(hoveredKey, color, 0.50);
@@ -446,7 +460,6 @@ export function Viewer() {
     detailsCard?.classList.remove("is-hidden");
 
     detailsTitle.textContent = unit.number || "—";
-    detailsSubtitle.textContent = unit.floor ? `Etage: ${unit.floor}` : "Etage: —";
     detailsBadge.className = `badge ${unit.status}`;
     detailsBadge.textContent = STATUS_LABEL[unit.status] || unit.status;
 
@@ -466,10 +479,6 @@ export function Viewer() {
       detailsPlan.removeAttribute("src");
       detailsPlan.classList.add("is-hidden");
       detailsPlanEmpty.style.display = "block";
-    }
-
-    if (panelNote) {
-      panelNote.textContent = `${unit.number} ausgewählt.`;
     }
   }
 
@@ -526,6 +535,10 @@ export function Viewer() {
     renderTable();
     showDetails(getUnitByKey(selectedKey));
     refreshVisualState();
+
+    setAccordionState(overviewSection, false);
+    setAccordionState(detailsSection, true);
+
     await flyCameraToGroup(selectedKey, 900);
   }
 
@@ -643,12 +656,6 @@ export function Viewer() {
     if (!hits.length) {
       hoveredKey = null;
       refreshVisualState();
-
-      if (panelNote && selectedKey) {
-        panelNote.textContent = `${getUnitByKey(selectedKey)?.number || ""} ausgewählt.`;
-      } else if (panelNote) {
-        panelNote.textContent = "Hover zeigt den Wohnungsstatus farblich.";
-      }
       return;
     }
 
@@ -664,13 +671,6 @@ export function Viewer() {
     if (hoveredKey !== normalizedKey) {
       hoveredKey = normalizedKey;
       refreshVisualState();
-
-      const unit = getUnitByKey(hoveredKey);
-      if (panelNote) {
-        panelNote.textContent = unit
-          ? `${unit.number} · ${STATUS_LABEL[unit.status]}`
-          : `Hover: ${hoveredKey}`;
-      }
     }
   }
 
@@ -678,12 +678,6 @@ export function Viewer() {
   renderer.domElement.addEventListener("pointerleave", () => {
     hoveredKey = null;
     refreshVisualState();
-
-    if (panelNote && selectedKey) {
-      panelNote.textContent = `${getUnitByKey(selectedKey)?.number || ""} ausgewählt.`;
-    } else if (panelNote) {
-      panelNote.textContent = "Hover zeigt den Wohnungsstatus farblich.";
-    }
   });
 
   controls.addEventListener("start", onUserInteraction);
@@ -743,6 +737,15 @@ export function Viewer() {
   availabilityToggle?.addEventListener("click", () => {
     showOnlyAvailable = !showOnlyAvailable;
     hoveredKey = null;
+
+    if (showOnlyAvailable) {
+      const selected = getUnitByKey(selectedKey);
+      if (selected && selected.status !== "free") {
+        selectedKey = null;
+        showDetails(null);
+      }
+    }
+
     refreshVisualState();
     updateAvailabilityButton();
     onUserInteraction();
