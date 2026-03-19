@@ -104,39 +104,34 @@ body {
   overflow: hidden;
 }
 
-.accordion-toggle {
-  width: 100%;
-  border: none;
-  background: #fff;
-  color: var(--text);
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 14px;
+  padding: 14px;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
+  user-select: none;
 }
 
-.accordion-icon {
-  font-size: 16px;
-  line-height: 1;
+.section-arrow {
   color: var(--muted);
   transition: transform 0.2s ease;
 }
 
-.accordion.is-open .accordion-icon {
+.section-collapsible.is-open .section-arrow {
   transform: rotate(180deg);
 }
 
-.accordion-content {
+.section-body {
   display: none;
   padding: 0 14px 14px;
 }
 
-.accordion.is-open .accordion-content {
+.section-collapsible.is-open .section-body {
   display: block;
 }
 
