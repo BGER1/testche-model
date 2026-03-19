@@ -51,6 +51,29 @@ body {
   outline: none;
 }
 
+.availability-toggle {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 5;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.94);
+  color: #1f1f1f;
+  padding: 11px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  backdrop-filter: blur(8px);
+}
+
+.availability-toggle.is-active {
+  background: #1f9d55;
+  color: #fff;
+  border-color: #1f9d55;
+}
+
 .panel {
   height: 100%;
   min-height: 0;
@@ -121,6 +144,10 @@ body {
 
 .info-table tbody tr.is-active {
   background: rgba(0,0,0,0.05);
+}
+
+.info-table tbody tr.is-hover {
+  background: rgba(0,0,0,0.03);
 }
 
 .info-table tbody td {
@@ -308,5 +335,21 @@ body {
     border-left: none;
     border-top: 1px solid var(--border);
     padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .availability-toggle {
+    left: 12px;
+    bottom: 12px;
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .detail-item {
+    padding: 9px 10px;
   }
 }
