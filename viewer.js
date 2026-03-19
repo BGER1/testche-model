@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
-import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js";
+import { DRACOLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/draco_decoder.js";
 
 export function Viewer() {
   const wrapper = document.getElementById("viewerCanvasWrapper");
@@ -96,21 +95,13 @@ export function Viewer() {
   }
 
   function getVisibleUnits() {
-    return showOnlyAvailable ? units.filter((u) => u.status === "free") : units;
-  }
-
-  function isUnitVisibleByFilter(key) {
-    const unit = getUnitByKey(key);
-    if (!unit) return false;
-    if (!showOnlyAvailable) return true;
-    return unit.status === "free";
+    return units;
   }
 
   function resolvePlanUrl(planValue) {
     return String(planValue || "").trim();
   }
 
-  // ---------------- THREE SETUP ----------------
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xffffff);
 
@@ -123,15 +114,10 @@ export function Viewer() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 0.98;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   wrapper.appendChild(renderer.domElement);
-
-  // subtle environment for better shading on building surfaces
-  const pmremGenerator = new THREE.PMREMGenerator(renderer);
-  const envRT = pmremGenerator.fromScene(new RoomEnvironment(renderer), 0.04);
-  scene.environment = envRT.texture;
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
@@ -143,34 +129,30 @@ export function Viewer() {
   controls.minPolarAngle = 0.22;
   controls.screenSpacePanning = false;
   controls.autoRotate = false;
-  controls.autoRotateSpeed = -0.45; // clockwise
+  controls.autoRotateSpeed = 0.8; // schneller + andere Richtung
 
-  // stronger lighting / more visible shading
-  const ambient = new THREE.AmbientLight(0xffffff, 0.36);
+  // Licht wieder einfacher wie davor
+  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   scene.add(ambient);
 
-  const hemi = new THREE.HemisphereLight(0xf6f8ff, 0xe8ecef, 0.55);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.55);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xffffff, 3.2);
-  sun.position.set(32, 40, 14);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4);
+  sun.position.set(24, 32, 18);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.00008;
-  sun.shadow.normalBias = 0.02;
+  sun.shadow.normalBias = 0.015;
   scene.add(sun);
 
-  const fill = new THREE.DirectionalLight(0xf4f6fb, 0.55);
-  fill.position.set(-18, 16, -14);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+  fill.position.set(-12, 14, -10);
   scene.add(fill);
-
-  const rim = new THREE.DirectionalLight(0xffffff, 0.35);
-  rim.position.set(6, 10, -24);
-  scene.add(rim);
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(1000, 1000),
-    new THREE.ShadowMaterial({ opacity: 0.22 })
+    new THREE.ShadowMaterial({ opacity: 0.18 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -188,12 +170,9 @@ export function Viewer() {
   window.addEventListener("resize", resize);
   resize();
 
-  // ---------------- AUTO ROTATE / IDLE ----------------
   let idleTimer = null;
-  let autoRotateEnabled = false;
 
   function setAutoRotate(enabled) {
-    autoRotateEnabled = enabled;
     controls.autoRotate = enabled;
   }
 
@@ -209,7 +188,6 @@ export function Viewer() {
     scheduleAutoRotateRestart(AUTO_ROTATE_DELAY_MS);
   }
 
-  // ---------------- GOOGLE SHEETS ----------------
   async function fetchSheetData() {
     if (!SHEET_ID) return units;
 
@@ -271,7 +249,6 @@ export function Viewer() {
     }
   }
 
-  // ---------------- MODEL ----------------
   const gltfLoader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/");
@@ -310,28 +287,16 @@ export function Viewer() {
       const hsl = {};
       material.color.getHSL(hsl);
       if (hsl.l > 0.6 && hsl.s < 0.2) {
-        material.color.lerp(new THREE.Color(0xffffff), 0.18);
+        material.color.lerp(new THREE.Color(0xffffff), 0.25);
       }
     }
 
     if ("metalness" in material) material.metalness = 0.0;
     if ("roughness" in material) {
-      material.roughness = Math.min(1, Math.max(0.60, material.roughness ?? 0.8));
+      material.roughness = Math.min(1, Math.max(0.72, material.roughness ?? 0.85));
     }
 
     material.needsUpdate = true;
-  }
-
-  function setGroupVisibleByFilter() {
-    for (const [key, group] of unitGroups.entries()) {
-      group.visible = isUnitVisibleByFilter(key);
-    }
-
-    pickMeshes = [];
-    if (!root) return;
-    root.traverse((o) => {
-      if (o.isMesh && o.visible) pickMeshes.push(o);
-    });
   }
 
   function clearOverlayGroup(key) {
@@ -356,13 +321,13 @@ export function Viewer() {
   function addOverlayGroup(key, tintColor, opacity = 0.45) {
     const normalized = normalizeUnitKey(key);
     const group = unitGroups.get(normalized);
-    if (!group || !group.visible) return;
+    if (!group) return;
 
     clearOverlayGroup(normalized);
 
     const originals = [];
     group.traverse((child) => {
-      if (child.isMesh && child.geometry && !child.userData.__isOverlay && child.visible) {
+      if (child.isMesh && child.geometry && !child.userData.__isOverlay) {
         originals.push(child);
       }
     });
@@ -397,13 +362,22 @@ export function Viewer() {
   function refreshVisualState() {
     clearAllOverlays();
 
-    if (selectedKey && isUnitVisibleByFilter(selectedKey)) {
+    // Filter-Button: freie Wohnungen dauerhaft grün zeigen
+    if (showOnlyAvailable) {
+      units.forEach((u) => {
+        if (u.status === "free") {
+          addOverlayGroup(u.key, STATUS_COLOR.free, 0.36);
+        }
+      });
+    }
+
+    if (selectedKey) {
       const unit = getUnitByKey(selectedKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
       addOverlayGroup(selectedKey, color, 0.28);
     }
 
-    if (hoveredKey && isUnitVisibleByFilter(hoveredKey)) {
+    if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
       const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
       addOverlayGroup(hoveredKey, color, 0.50);
@@ -453,10 +427,10 @@ export function Viewer() {
         refreshVisualState();
       });
 
-      row.addEventListener("click", () => {
+      row.addEventListener("click", async () => {
         const key = row.getAttribute("data-key");
-        selectUnit(key);
         onUserInteraction();
+        await selectUnit(key);
       });
     });
 
@@ -464,7 +438,7 @@ export function Viewer() {
   }
 
   function showDetails(unit) {
-    if (!unit || (showOnlyAvailable && unit.status !== "free")) {
+    if (!unit) {
       detailsCard?.classList.add("is-hidden");
       return;
     }
@@ -518,7 +492,10 @@ export function Viewer() {
     );
 
     const offset = camera.position.clone().sub(controls.target);
-    const dir = offset.lengthSq() > 0 ? offset.clone().normalize() : new THREE.Vector3(1, 0.35, 1).normalize();
+    const dir = offset.lengthSq() > 0
+      ? offset.clone().normalize()
+      : new THREE.Vector3(1, 0.35, 1).normalize();
+
     const endPos = endTarget.clone().add(dir.multiplyScalar(Math.max(radius * 2.0, 8)));
 
     return new Promise((resolve) => {
@@ -546,14 +523,6 @@ export function Viewer() {
 
   async function selectUnit(key) {
     selectedKey = normalizeUnitKey(key);
-
-    if (!isUnitVisibleByFilter(selectedKey)) {
-      selectedKey = null;
-      showDetails(null);
-      refreshVisualState();
-      return;
-    }
-
     renderTable();
     showDetails(getUnitByKey(selectedKey));
     refreshVisualState();
@@ -578,13 +547,13 @@ export function Viewer() {
     controls.minDistance = Math.max(4, maxDim * 0.30);
     controls.maxDistance = Math.max(20, maxDim * 4.2);
 
-    const shadowRange = Math.max(size.x, size.z) * 1.35;
+    const shadowRange = Math.max(size.x, size.z) * 1.25;
     sun.shadow.camera.left = -shadowRange;
     sun.shadow.camera.right = shadowRange;
     sun.shadow.camera.top = shadowRange;
     sun.shadow.camera.bottom = -shadowRange;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = Math.max(120, size.y * 10);
+    sun.shadow.camera.far = Math.max(100, size.y * 8);
 
     ground.position.y = box.min.y - 0.03;
   }
@@ -617,7 +586,6 @@ export function Viewer() {
 
           scene.add(root);
           collectUnitGroups();
-          setGroupVisibleByFilter();
           fitCamera(root);
 
           if (loaderEl) loaderEl.style.display = "none";
@@ -645,7 +613,6 @@ export function Viewer() {
     });
   }
 
-  // ---------------- POINTER ----------------
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
@@ -692,12 +659,6 @@ export function Viewer() {
       return;
     }
 
-    if (!isUnitVisibleByFilter(key)) {
-      hoveredKey = null;
-      refreshVisualState();
-      return;
-    }
-
     const normalizedKey = normalizeUnitKey(key);
 
     if (hoveredKey !== normalizedKey) {
@@ -725,12 +686,10 @@ export function Viewer() {
     }
   });
 
-  // interaction hooks for auto-rotate idle logic
   controls.addEventListener("start", onUserInteraction);
   renderer.domElement.addEventListener("wheel", onUserInteraction, { passive: true });
   renderer.domElement.addEventListener("pointerdown", onUserInteraction);
 
-  // ---------------- CLICK ----------------
   const clickState = {
     downX: 0,
     downY: 0,
@@ -767,13 +726,12 @@ export function Viewer() {
     if (!hits.length) return;
 
     const key = findKeyByWalkingParents(hits[0].object);
-    if (!key || !isUnitVisibleByFilter(key)) return;
+    if (!key) return;
 
     onUserInteraction();
     await selectUnit(key);
   });
 
-  // ---------------- FILTER BUTTON ----------------
   function updateAvailabilityButton() {
     if (!availabilityToggle) return;
     availabilityToggle.classList.toggle("is-active", showOnlyAvailable);
@@ -785,20 +743,11 @@ export function Viewer() {
   availabilityToggle?.addEventListener("click", () => {
     showOnlyAvailable = !showOnlyAvailable;
     hoveredKey = null;
-
-    if (selectedKey && !isUnitVisibleByFilter(selectedKey)) {
-      selectedKey = null;
-      showDetails(null);
-    }
-
-    setGroupVisibleByFilter();
-    renderTable();
     refreshVisualState();
     updateAvailabilityButton();
     onUserInteraction();
   });
 
-  // ---------------- INIT ----------------
   async function init() {
     renderTable();
     showDetails(null);
@@ -816,7 +765,6 @@ export function Viewer() {
       if (loaderInfo) loaderInfo.textContent = "";
     }, 120);
 
-    // soft start, then autorotate
     setTimeout(() => {
       setAutoRotate(true);
       scheduleAutoRotateRestart(AUTO_ROTATE_DELAY_MS);
