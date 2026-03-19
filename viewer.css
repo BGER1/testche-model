@@ -92,12 +92,7 @@ body {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.panel-subtitle {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
+  text-align: center;
 }
 
 .panel-section {
@@ -105,17 +100,44 @@ body {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.03);
+  overflow: hidden;
 }
 
-.section-title {
+.accordion-toggle {
+  width: 100%;
+  border: none;
+  background: #fff;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--muted);
-  margin-bottom: 12px;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.accordion-icon {
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.accordion.is-open .accordion-icon {
+  transform: rotate(180deg);
+}
+
+.accordion-content {
+  display: none;
+  padding: 0 14px 14px;
+}
+
+.accordion.is-open .accordion-content {
+  display: block;
 }
 
 .info-table {
@@ -213,12 +235,6 @@ body {
   line-height: 1.1;
 }
 
-.details-subtitle {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -271,13 +287,6 @@ body {
   margin-top: 8px;
   font-size: 12px;
   color: var(--muted);
-}
-
-.panel-note {
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.45;
 }
 
 .loader {
