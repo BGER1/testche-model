@@ -12,8 +12,8 @@ export function Viewer() {
 
   const overviewSection = document.getElementById("overviewSection");
   const detailsSection = document.getElementById("detailsSection");
-  const overviewToggle = document.getElementById("overviewToggle");
-  const detailsToggle = document.getElementById("detailsToggle");
+  const overviewHeader = document.getElementById("overviewHeader");
+  const detailsHeader = document.getElementById("detailsHeader");
 
   const detailsCard = document.getElementById("detailsCard");
   const detailsTitle = document.getElementById("detailsTitle");
@@ -97,25 +97,21 @@ export function Viewer() {
     return units.find((u) => normalizeUnitKey(u.key) === normalized) || null;
   }
 
-  function getVisibleUnits() {
-    return units;
-  }
-
   function resolvePlanUrl(planValue) {
     return String(planValue || "").trim();
   }
 
-  function setAccordionState(sectionEl, isOpen) {
+  function setSectionOpen(sectionEl, open) {
     if (!sectionEl) return;
-    sectionEl.classList.toggle("is-open", isOpen);
+    sectionEl.classList.toggle("is-open", open);
   }
 
-  overviewToggle?.addEventListener("click", () => {
-    setAccordionState(overviewSection, !overviewSection.classList.contains("is-open"));
+  overviewHeader?.addEventListener("click", () => {
+    setSectionOpen(overviewSection, !overviewSection.classList.contains("is-open"));
   });
 
-  detailsToggle?.addEventListener("click", () => {
-    setAccordionState(detailsSection, !detailsSection.classList.contains("is-open"));
+  detailsHeader?.addEventListener("click", () => {
+    setSectionOpen(detailsSection, !detailsSection.classList.contains("is-open"));
   });
 
   const scene = new THREE.Scene();
@@ -385,16 +381,22 @@ export function Viewer() {
       });
     }
 
-    if (selectedKey && (!showOnlyAvailable || getUnitByKey(selectedKey)?.status === "free")) {
+    if (selectedKey) {
       const unit = getUnitByKey(selectedKey);
-      const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
-      addOverlayGroup(selectedKey, color, 0.28);
+      const shouldShowSelected = !showOnlyAvailable || unit?.status === "free";
+      if (shouldShowSelected) {
+        const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
+        addOverlayGroup(selectedKey, color, 0.28);
+      }
     }
 
-    if (hoveredKey && (!showOnlyAvailable || getUnitByKey(hoveredKey)?.status === "free")) {
+    if (hoveredKey) {
       const unit = getUnitByKey(hoveredKey);
-      const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
-      addOverlayGroup(hoveredKey, color, 0.50);
+      const shouldShowHovered = !showOnlyAvailable || unit?.status === "free";
+      if (shouldShowHovered) {
+        const color = STATUS_COLOR[unit?.status] || new THREE.Color(0x3399ff);
+        addOverlayGroup(hoveredKey, color, 0.50);
+      }
     }
 
     updateTableRowStates();
@@ -414,7 +416,7 @@ export function Viewer() {
   function renderTable() {
     if (!infoRows) return;
 
-    const visibleUnits = getVisibleUnits();
+    const visibleUnits = units;
 
     infoRows.innerHTML = visibleUnits.map((u) => {
       return `
@@ -536,8 +538,8 @@ export function Viewer() {
     showDetails(getUnitByKey(selectedKey));
     refreshVisualState();
 
-    setAccordionState(overviewSection, false);
-    setAccordionState(detailsSection, true);
+    setSectionOpen(overviewSection, false);
+    setSectionOpen(detailsSection, true);
 
     await flyCameraToGroup(selectedKey, 900);
   }
